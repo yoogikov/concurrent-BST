@@ -1,0 +1,7 @@
+; Library: lock-free BST implementation
+(library
+ (name bst)
+ (wrapped false)
+ (modules bst)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))
