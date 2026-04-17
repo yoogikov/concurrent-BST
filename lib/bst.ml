@@ -8,13 +8,7 @@
 type 'a node =
   { item : 'a option
   ; key : int
-  ; left : 'a child Atomic.t
-  }
-
-and 'a child =
-  { flag : bool
-  ; tag : bool
-  ; node : 'a node
+  ; left : 'a
   }
 
 type 'a t = 'a node
