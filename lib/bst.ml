@@ -63,6 +63,7 @@ let create () =
   let leaf_inf1 = make_leaf inf1 None in
   let leaf_inf2 = make_leaf inf2 None in
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
+  (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
   r
 
@@ -74,7 +75,9 @@ let seek root key =
     let successor = ref s in
     let parent = ref s in
     let leaf = ref leaf_node in
+    (* Initialized seek record*)
 
+    (* Loop state variables*)
     let parent_field = ref s.left in (* field / edge*)
     let current_field = ref leaf_node.left in (* field / edge *)
     let current = ref (AFT.get_value leaf_node.left) in (* node *)
@@ -89,8 +92,10 @@ let seek root key =
         leaf := !current;
         parent_field := !current_field;
         if key < !current.key then
+            (* Left child*)
             current_field := (!current).left
         else
+            (* Right child*)
             current_field := (!current).right;
         
         current := AFT.get_value !current_field;
