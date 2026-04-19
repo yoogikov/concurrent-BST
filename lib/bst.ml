@@ -54,16 +54,17 @@ let make_internal key left right =
   ; left = AFT.make ~flag:false ~tag:false left
   ; right = AFT.make ~flag:false ~tag:false right
   }
-;;
+let child_edge node key =
+  if key < node.key then node.left else node.right
 
+(** [create ()] creates an empty lock-free BST with sentinel structure
+    already installed. *)
 (*        R (inf2)                                                      *)
 (*       /        \                                                     *)
 (*    S (inf1)   leaf(inf2)                                            *)
 (*    /      \                                                          *)
 (* leaf(inf0) leaf(inf1)                                               *)
 (* ------------------------------------------------------------------ *)
-(** [create ()] creates an empty lock-free BST with sentinel structure
-    already installed. *)
 let create () =
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
@@ -73,42 +74,60 @@ let create () =
   (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
   r
-;;
 
-let seek root value =
-  (* failwith "Not implemented" *)
-  let key = Hashtbl.hash value in
-  let s = AFT.get_value root.left in
-  let leaf_node = AFT.get_value s.left in
-  let ancestor = ref root in
-  let successor = ref s in
-  let parent = ref s in
-  let leaf = ref leaf_node in
-  let parent_edge = ref s.left in
-  (* field / edge*)
-  let current_edge = ref leaf_node.left in
-  (* field / edge *)
-  let current = ref (AFT.get_value leaf_node.left) in
-  (* node *)
-  while not (is_leaf !current) do
-    if not (AFT.get_tag !parent_edge)
-    then (
-      ancestor := !parent;
-      successor := !current);
-    parent := !leaf;
-    leaf := !current;
-    parent_edge := !current_edge;
-    if key < !current.key
-    then current_edge := !current.left
-    else current_edge := !current.right;
-    current := AFT.get_value !current_edge
-  done;
-  { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
-;;
+(** The seek phase return a [seek record], which consists of the addresses of four nodes:
+    - [leaf node]
+    - [parent node]
+    - [successor node] : The head of the last untagged edge encountered on the access path before the parent node
+    - [ancestor node] : The tail of the last untagged edge encountered on the access path before the parent node
+
+All the nodes on the access path from the successor to the parent node are in the process of being removed *)
+let seek root value = 
+    (* failwith "Not implemented" *)
+
+    let key = Hashtbl.hash value in
+    let s = AFT.get_value root.left in
+    let leaf_node = AFT.get_value s.left in
+
+    (* Initialize seek record*)
+    let ancestor = ref root in
+    let successor = ref s in
+    let parent = ref s in
+    let leaf = ref leaf_node in
+
+    let rec traverse parent_field current_field current = 
+        if is_leaf current then 
+            { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
+        else begin
+            if not (AFT.get_tag parent_field) then begin
+                (* Update ancestor and successor as the edge is untagged*)
+                ancestor := !parent;
+                successor := !leaf;
+            end;
+            parent := !leaf;
+            leaf := current;
+            let new_current_field = child_edge current key in
+            let new_current = AFT.get_value new_current_field in
+            traverse current_field new_current_field new_current 
+
+        end in
+    
+    (* Initialize params*)
+    let init_current_field = leaf_node.left in
+    let init_current = AFT.get_value init_current_field in
+    traverse s.left init_current_field init_current
 
 (** [search tree k] returns [true] if [k] is present in [tree],
-    and [false] otherwise. This is a lock-free search operation. *)
-let search _ _ = failwith "Not implemented"
+    and [false] otherwise. This is a lock-free search operation. 
+   Calls seek to get the seek record of the access path *)
+let search root value =
+     (* failwith "Not implemented" *)
+     let sr = seek root value in
+     match sr.leaf.item with 
+     | Some v -> value = v
+     | None -> false 
+     
+
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present. *)
