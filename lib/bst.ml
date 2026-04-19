@@ -65,8 +65,6 @@ let child_edge node key =
 (*    /      \                                                          *)
 (* leaf(inf0) leaf(inf1)                                               *)
 (* ------------------------------------------------------------------ *)
-(** [create ()] creates an empty lock-free BST with sentinel structure
-    already installed. *)
 let create () =
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
