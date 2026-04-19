@@ -24,6 +24,8 @@ val make : flag:bool -> tag:bool -> 'a -> 'a t
 (** {1 Whole-record operations} *)
 
 
+(** [get r] atomically reads the current [flag], [tag], and [value] of [r]
+    and returns them as a {!snapshot}. *)
 val get : 'a t -> 'a snapshot
 
 (** [set r ~flag ~tag v] atomically replaces the contents of [r] with the
