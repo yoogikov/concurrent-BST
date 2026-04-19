@@ -47,7 +47,8 @@ let make_internal key left right =
   ; left  = AFT.make ~flag:false ~tag:false left
   ; right = AFT.make ~flag:false ~tag:false right
   }
-
+let child_edge node key =
+  if key < node.key then node.left else node.right
 
 (** [create ()] creates an empty lock-free BST with sentinel structure
     already installed. *)
@@ -71,44 +72,45 @@ let seek root key =
     (* failwith "Not implemented" *)
     let s = AFT.get_value root.left in
     let leaf_node = AFT.get_value s.left in
+
+    (* Initialize seek record*)
     let ancestor = ref root in
     let successor = ref s in
     let parent = ref s in
     let leaf = ref leaf_node in
-    (* Initialized seek record*)
 
-    (* Loop state variables*)
-    let parent_field = ref s.left in (* field / edge*)
-    let current_field = ref leaf_node.left in (* field / edge *)
-    let current = ref (AFT.get_value leaf_node.left) in (* node *)
+    let rec traverse parent_field current_field current = 
+        if is_leaf current then 
+            { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
+        else begin
+            if not (AFT.get_tag parent_field) then begin
+                ancestor := !parent;
+                successor := !leaf;
+            end;
+            parent := !leaf;
+            leaf := current;
+            let new_current_field = child_edge current key in
+            let new_current = AFT.get_value new_current_field in
+            traverse current_field new_current_field new_current 
 
-
-    while not (is_leaf !current) do
-        if not (AFT.get_tag !parent_field) then begin
-            ancestor := !parent;
-            successor := !current;
-        end;
-        parent := !leaf;
-        leaf := !current;
-        parent_field := !current_field;
-        if key < !current.key then
-            (* Left child*)
-            current_field := (!current).left
-        else
-            (* Right child*)
-            current_field := (!current).right;
-        
-        current := AFT.get_value !current_field;
-    done;
-    { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
-
-
-
-
+        end in
+    
+    (* Initialize params*)
+    let init_current_field = leaf_node.left in
+    let init_current = AFT.get_value init_current_field in
+    traverse s.left init_current_field init_current
 
 (** [search tree k] returns [true] if [k] is present in [tree],
     and [false] otherwise. This is a lock-free search operation. *)
-let search _ _ = failwith "Not implemented"
+let search root v =
+     (* failwith "Not implemented" *)
+     let key = Hashtbl.hash v in
+     let sr = seek root key in
+     
+     if sr.leaf.key = key && Option.is_some sr.leaf.item then
+        true
+     else false
+
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present. *)
