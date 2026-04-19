@@ -23,8 +23,7 @@ val make : flag:bool -> tag:bool -> 'a -> 'a t
 
 (** {1 Whole-record operations} *)
 
-(** [get r] atomically reads the current [flag], [tag], and [value] of [r]
-    and returns them as a {!snapshot}. *)
+
 val get : 'a t -> 'a snapshot
 
 (** [set r ~flag ~tag v] atomically replaces the contents of [r] with the
@@ -37,7 +36,8 @@ val set : 'a t -> flag:bool -> tag:bool -> 'a -> unit
     three fields ([flag], [tag], and [value]) the record is atomically updated
     to the new [flag], [tag], and [v] and [true] is returned; otherwise the
     record is left unchanged and [false] is returned. *)
-val cas : 'a t -> 'a snapshot -> flag:bool -> tag:bool -> 'a -> bool
+val cas : 'a t -> exp_flag:bool -> exp_tag:bool -> exp_val: 'a -> new_flag:bool -> new_tag:bool -> new_val:'a -> bool
+
 
 (** {1 Field-level accessors}
 

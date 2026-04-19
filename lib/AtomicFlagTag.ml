@@ -4,30 +4,85 @@ type 'a snapshot =
   ; value : 'a
   }
 
-type 'a t = unit (* placeholder — replace with real representation *)
+type 'a t = 'a snapshot Atomic.t (* placeholder — replace with real representation *)
 
-exception Not_implemented of string
-
-let not_implemented name = raise (Not_implemented name)
 
 (* Construction *)
-
-let make ~flag:_ ~tag:_ _ = not_implemented "make"
+(** Create a new snapshot with params [flag], [tag], and [value]*)
+let make ~flag ~tag value = 
+    Atomic.make {flag; tag; value}
 
 (* Whole-record operations *)
 
-let get _ = not_implemented "get"
-let set _ ~flag:_ ~tag:_ _ = not_implemented "set"
-let cas _ _ ~flag:_ ~tag:_ _ = not_implemented "cas"
+(** [get r] atomically reads the current [flag], [tag], and [value] of [r]
+    and returns them as a {!snapshot}. *)
+let get r  = 
+  (* not_implemented "get" *)
+  Atomic.get r
+
+(** [set r flag tag value] replaces the contents of [r] with the given 
+ [flag] [tag] and payload [value]*)
+let set r ~flag ~tag value = 
+  (* not_implemented "set" *)
+  Atomic.set r {flag; tag; value}
+
+(** Return [true] on a successful cas and [false] otherwise*)
+let cas (snapshot : 'a t) ~exp_flag ~exp_tag ~(exp_val : 'a) ~new_flag ~new_tag ~(new_val : 'a) =
+  let current = Atomic.get snapshot in
+  if current.flag = exp_flag && current.tag = exp_tag && current.value == exp_val then
+    let new_snapshot = { flag = new_flag; tag = new_tag; value = new_val } in
+    Atomic.compare_and_set snapshot current new_snapshot
+  else
+    false
+
+
 
 (* Field-level accessors *)
 
-let get_flag _ = not_implemented "get_flag"
-let get_tag _ = not_implemented "get_tag"
-let get_value _ = not_implemented "get_value"
+
+let get_flag r = 
+  (* not_implemented "get_flag" *)
+  let snapshot = Atomic.get r in
+  snapshot.flag
+
+let get_tag r =
+   (* not_implemented "get_tag" *)
+   let snapshot = Atomic.get r in
+   snapshot.tag
+let get_value r =
+   (* not_implemented "get_value" *)
+   let snapshot = Atomic.get r in
+   snapshot.value
 
 (* Field-level mutators *)
 
-let set_flag _ _ = not_implemented "set_flag"
-let set_tag _ _ = not_implemented "set_tag"
-let set_value _ _ = not_implemented "set_value"
+let set_flag r flag = 
+  (* not_implemented "set_flag" *)
+  let rec loop () = 
+    let snapshot = Atomic.get r in
+    let new_snapshot = { snapshot with flag } in
+    if Atomic.compare_and_set r snapshot new_snapshot then
+      ()
+    else
+      loop ()
+    in loop ()
+let set_tag r tag =
+   (* not_implemented "set_tag" *)
+    let rec loop () = 
+      let snapshot = Atomic.get r in
+      let new_snapshot = { snapshot with tag } in
+      if Atomic.compare_and_set r snapshot new_snapshot then
+        ()
+      else
+        loop ()
+      in loop ()
+let set_value r value =
+   (* not_implemented "set_value" *)
+    let rec loop () = 
+      let snapshot = Atomic.get r in
+      let new_snapshot = { snapshot with value } in
+      if Atomic.compare_and_set r snapshot new_snapshot then
+        ()
+      else
+        loop ()
+      in loop ()
