@@ -8,7 +8,8 @@
 type 'a node =
   { item : 'a option
   ; key : int
-  ; left : 'a
+  ; left : 'a AtomicFlagTag.t
+  ; right : 'a AtomicFlagTag.t
   }
 
 type 'a t = 'a node
