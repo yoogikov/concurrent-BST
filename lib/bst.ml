@@ -54,16 +54,11 @@ let make_internal key left right =
   ; left = AFT.make ~flag:false ~tag:false left
   ; right = AFT.make ~flag:false ~tag:false right
   }
-<<<<<<< HEAD
 let child_edge node key =
   if key < node.key then node.left else node.right
 
 (** [create ()] creates an empty lock-free BST with sentinel structure
     already installed. *)
-=======
-;;
-
->>>>>>> 6f8f7cc6c6bfdd449674f976f1a24d687f646a92
 (*        R (inf2)                                                      *)
 (*       /        \                                                     *)
 (*    S (inf1)   leaf(inf2)                                            *)
@@ -81,10 +76,18 @@ let create () =
   (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
   r
-;;
 
-let seek root key = 
+(** The seek phase return a [seek record], which consists of the addresses of four nodes:
+    - [leaf node]
+    - [parent node]
+    - [successor node] : The head of the last untagged edge encountered on the access path before the parent node
+    - [ancestor node] : The tail of the last untagged edge encountered on the access path before the parent node
+
+All the nodes on the access path from the successor to the parent node are in the process of being removed *)
+let seek root value = 
     (* failwith "Not implemented" *)
+
+    let key = Hashtbl.hash value in
     let s = AFT.get_value root.left in
     let leaf_node = AFT.get_value s.left in
 
@@ -99,6 +102,7 @@ let seek root key =
             { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
         else begin
             if not (AFT.get_tag parent_field) then begin
+                (* Update ancestor and successor as the edge is untagged*)
                 ancestor := !parent;
                 successor := !leaf;
             end;
@@ -116,15 +120,15 @@ let seek root key =
     traverse s.left init_current_field init_current
 
 (** [search tree k] returns [true] if [k] is present in [tree],
-    and [false] otherwise. This is a lock-free search operation. *)
-let search root v =
+    and [false] otherwise. This is a lock-free search operation. 
+   Calls seek to get the seek record of the access path *)
+let search root value =
      (* failwith "Not implemented" *)
-     let key = Hashtbl.hash v in
-     let sr = seek root key in
+     let sr = seek root value in
+     match sr.leaf.item with 
+     | Some v -> value = v
+     | None -> false 
      
-     if sr.leaf.key = key && Option.is_some sr.leaf.item then
-        true
-     else false
 
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
