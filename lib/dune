@@ -5,3 +5,11 @@
  (modules bst AtomicFlagTag)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
+
+
+(library
+ (name coarseGrainedBST)
+ (wrapped false)
+ (modules coarseGrainedBST)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))
