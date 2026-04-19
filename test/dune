@@ -1,0 +1,5 @@
+(executable
+ (name checker)
+ (modules checker)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))

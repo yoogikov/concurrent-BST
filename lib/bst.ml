@@ -70,6 +70,7 @@ let create () =
   let leaf_inf1 = make_leaf inf1 None in
   let leaf_inf2 = make_leaf inf2 None in
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
+  (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
   r
 ;;
