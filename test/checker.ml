@@ -10,57 +10,56 @@ let process_file filename =
     try
       let line = input_line ic in
       read_lines (line :: acc)
-    with End_of_file ->
+    with
+    | End_of_file ->
       close_in ic;
       List.rev acc
   in
   let lines = read_lines [] in
   let lines = List.map String.trim lines in
   let lines = List.filter (fun s -> s <> "" && s <> "START" && s <> "END") lines in
-  
   let rec process_commands tree step = function
     | [] -> ()
     | line :: rest ->
-      Printf.printf "\n=== Step %d ===\n" step;
-      Printf.printf "Command: %s\n" line;
-      
+      Printf.printf "\n=== Step %d ===\n%!" step;
+      Printf.printf "Command: %s\n%!" line;
       let new_tree =
-        if line = "CREATE" then begin
-          Printf.printf "Creating new tree\n";
-          create ()
-        end
-        else if String.starts_with ~prefix:"INSERT " line then begin
+        if line = "CREATE"
+        then (
+          Printf.printf "Creating new tree\n%!";
+          create ())
+        else if String.starts_with ~prefix:"INSERT " line
+        then (
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
           let changed = insert tree key in
-          Printf.printf "Inserting: %d (changed: %b)\n" key changed;
-          tree
-        end
-        else if String.starts_with ~prefix:"DELETE " line then begin
+          Printf.printf "Inserting: %d (changed: %b)\n%!" key changed;
+          tree)
+        else if String.starts_with ~prefix:"DELETE " line
+        then (
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
           let changed = delete tree key in
-          Printf.printf "Deleting: %d (changed: %b)\n" key changed;
-          tree
-        end
-        else if String.starts_with ~prefix:"SEARCH " line then begin
+          Printf.printf "Deleting: %d (changed: %b)\n%!" key changed;
+          tree)
+        else if String.starts_with ~prefix:"SEARCH " line
+        then (
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
           let found = search tree key in
-          Printf.printf "Searching: %d (found: %b)\n" key found;
-          tree
-        end
+          Printf.printf "Searching: %d (found: %b)\n%!" key found;
+          tree)
         else tree
       in
-      
-      Printf.printf "\nTree structure:\n";
-      Printf.printf "%s\n" (to_string new_tree);
-      (* Printf.printf "Size: %d\n" (size new_tree); *)
+      Printf.printf "\nTree structure:\n%!";
+      Printf.printf "%s\n%!" (to_string new_tree);
+      (* Printf.printf "Size: %d\n%!" (size new_tree); *)
       process_commands new_tree (step + 1) rest
   in
-  
   process_commands (create ()) 0 lines
+;;
 
 let () =
-  if Array.length Sys.argv < 2 then begin
-    Printf.printf "Usage: %s <test_file>\n" Sys.argv.(0);
-    exit 1
-  end;
+  if Array.length Sys.argv < 2
+  then (
+    Printf.printf "Usage: %s <test_file>\n%!" Sys.argv.(0);
+    exit 1);
   process_file Sys.argv.(1)
+;;
