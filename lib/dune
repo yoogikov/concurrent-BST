@@ -1,8 +1,8 @@
 ; Library: lock-free BST implementation
 (library
- (name bst)
+ (name Bst)
  (wrapped false)
- (modules bst AtomicFlagTag)
+ (modules Bst AtomicFlagTag)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
 

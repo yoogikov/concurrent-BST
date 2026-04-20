@@ -8,9 +8,9 @@
 (executable
  (name qcheck_lin_lockfree_bst)
  (modules qcheck_lin_lockfree_bst)
- (libraries bst qcheck-lin.domain))
+ (libraries Bst qcheck-lin.domain))
 
 (executable
  (name qcheck_stm_lockfree_bst)
  (modules qcheck_stm_lockfree_bst)
- (libraries bst qcheck-stm.sequential qcheck-stm.domain qcheck-multicoretests-util))
+ (libraries Bst qcheck-stm.sequential qcheck-stm.domain qcheck-multicoretests-util))
