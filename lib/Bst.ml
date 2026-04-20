@@ -75,6 +75,16 @@ let create () =
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
   (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
+  (* let x = is_leaf leaf_inf0 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf leaf_inf1 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf leaf_inf2 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf s in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf r in *)
+  (* Printf.printf "%b\n%!" x; *)
   r
 ;;
 
@@ -86,34 +96,48 @@ let create () =
 
 All the nodes on the access path from the successor to the parent node are in the process of being removed *)
 let seek root value =
+  if is_leaf (AFT.get_value root.left)
+  then Printf.printf "root is leaf\n%!"
+  else Printf.printf "root is not leaf\n%!";
   (* failwith "Not implemented" *)
   let key = Hashtbl.hash value in
   let s = AFT.get_value root.left in
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
-  let ancestor = ref root in
-  let successor = ref s in
-  let parent = ref s in
-  let leaf = ref leaf_node in
-  let rec traverse parent_field current_field current =
-    if is_leaf current
-    then { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf }
+  let rec get_record ancestor successor parent leaf parent_leaf_edge =
+    if is_leaf leaf
+    then { ancestor; successor; parent; leaf }
     else (
-      if not (AFT.get_tag parent_field)
-      then (
-        (* Update ancestor and successor as the edge is untagged*)
-        ancestor := !parent;
-        successor := !leaf);
-      parent := !leaf;
-      leaf := current;
-      let new_current_field = child_edge current key in
-      let new_current = AFT.get_value new_current_field in
-      traverse current_field new_current_field new_current)
+      let next_edge = child_edge leaf key in
+      if not (AFT.get_tag parent_leaf_edge)
+      then get_record parent leaf leaf (AFT.get_value next_edge) next_edge
+      else get_record ancestor successor leaf (AFT.get_value next_edge) next_edge)
   in
+  (* let ancestor = ref root in *)
+  (* let successor = ref s in *)
+  (* let parent = ref s in *)
+  (* let leaf = ref leaf_node in *)
+  (* let rec traverse parent_field current_field current = *)
+  (*   Printf.printf "hi\n%!"; *)
+  (*   if is_leaf current *)
+  (*   then { ancestor = !ancestor; successor = !successor; parent = !parent; leaf = !leaf } *)
+  (*   else ( *)
+  (*     if not (AFT.get_tag parent_field) *)
+  (*     then ( *)
+  (*       (* Update ancestor and successor as the edge is untagged*) *)
+  (*       ancestor := !parent; *)
+  (*       successor := !leaf); *)
+  (*     parent := !leaf; *)
+  (*     leaf := current; *)
+  (*     let new_current_field = child_edge current key in *)
+  (*     let new_current = AFT.get_value new_current_field in *)
+  (*     traverse current_field new_current_field new_current) *)
+  (* in *)
   (* Initialize params*)
-  let init_current_field = leaf_node.left in
-  let init_current = AFT.get_value init_current_field in
-  traverse s.left init_current_field init_current
+  (* let init_current_field = leaf_node.left in *)
+  (* let init_current = AFT.get_value init_current_field in *)
+  (* traverse s.left init_current_field init_current *)
+  get_record root s s leaf_node s.left
 ;;
 
 (** [search tree k] returns [true] if [k] is present in [tree],
