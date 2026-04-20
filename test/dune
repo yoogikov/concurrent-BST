@@ -3,7 +3,7 @@
  (modules checker)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32))
- (libraries bst))
+ (libraries bst coarseGrainedBST))
 
 (executable
  (name qcheck_lin_lockfree_bst)
