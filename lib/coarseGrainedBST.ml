@@ -52,16 +52,18 @@ let insert bst item =
         | None ->
             bst.root <-
               Some { key; value = item; left = None; right = None };
-            bst.size <- bst.size + 1
+            bst.size <- bst.size + 1;
+            true
         | Some node ->
             if key = node.key then
-              ()
+              false
             else if key < node.key then
               begin
                 match node.left with
                 | None ->
                     node.left <- Some { key; value = item; left = None; right = None };
-                    bst.size <- bst.size + 1
+                    bst.size <- bst.size + 1;
+                    true
                 | Some _ ->
                     loop node.left
               end
@@ -70,7 +72,8 @@ let insert bst item =
                 match node.right with
                 | None ->
                     node.right <- Some { key; value = item; left = None; right = None };
-                    bst.size <- bst.size + 1
+                    bst.size <- bst.size + 1;
+                    true
                 | Some _ ->
                     loop node.right
               end
@@ -125,10 +128,50 @@ let delete bst item =
       in
       let (new_root, deleted) = remove bst.root in
       bst.root <- new_root;
-      if deleted then bst.size <- bst.size - 1)
+      if deleted then (bst.size <- bst.size - 1;true)
+      else false)
 
 let size bst =
   Mutex.lock bst.mutex;
   Fun.protect
     ~finally:(fun () -> Mutex.unlock bst.mutex)
     (fun () -> bst.size)
+
+(** to_string is a helper function to visualize the tree structure *)
+let to_string bst =
+  Mutex.lock bst.mutex;
+  Fun.protect
+    ~finally:(fun () -> Mutex.unlock bst.mutex)
+    (fun () ->
+      let buf = Buffer.create 256 in
+      let rec walk prefix is_last is_root node =
+        match node with
+        | None -> ()
+        | Some n ->
+            let branch =
+              if is_root
+              then ""
+              else if is_last
+              then "└── "
+              else "├── "
+            in
+            let label = Printf.sprintf "[%d]" n.key in
+            Buffer.add_string buf prefix;
+            Buffer.add_string buf branch;
+            Buffer.add_string buf label;
+            Buffer.add_char buf '\n';
+            
+            let child_prefix =
+              if is_root
+              then ""
+              else if is_last
+              then prefix ^ "    "
+              else prefix ^ "│   "
+            in
+            
+            (* Traverse left then right *)
+            walk child_prefix false false n.left;
+            walk child_prefix true false n.right
+      in
+      walk "" false true bst.root;
+      Buffer.contents buf)
