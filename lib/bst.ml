@@ -335,12 +335,8 @@ let rec insert tree value =
     insert/delete operations preserve the expected tree size. *)
 let size _ = failwith "Not implemented"
 
-(** Pretty-printing for debugging.
-
-    This is a lock-free snapshot: the tree may change while we print,
-    so the output is a best-effort view of one recent state, not a
-    synchronized dump.  Useful for manual inspection and test failures,
-    not for anything the program's correctness depends on. *)
+(** Pretty-printing for debugging. Lock-free snapshot — the tree may
+    change during printing, so output reflects one recent state. *)
 
 let sentinel_name k =
   if k = inf0
@@ -358,76 +354,58 @@ let key_str k =
   | None -> string_of_int k
 ;;
 
-(** [pp ?pp_item fmt tree] prints [tree] to [fmt] in a rotated ASCII
-    layout. Internal nodes show [key]; leaves show [L:key] with the
-    item (if any and if [pp_item] is supplied). Edge marks appear on
-    their own line under the edge's head: [⚑] flagged, [⚐] tagged,
-    [⚑⚐] both. *)
-let pp ?pp_item fmt tree =
-  let open Format in
-  (* [edge_marks] returns a string like " ⚑", " ⚐", " ⚑⚐", or "". *)
+(** [to_string tree] returns a rotated-ASCII rendering of [tree].
+    Internal nodes appear as [key]; leaves as [L:key]. Edge marks
+    appear after the head node: [⚑] flagged, [⚐] tagged. *)
+let to_string tree =
+  let buf = Buffer.create 256 in
   let edge_marks edge =
     let s = AFT.get edge in
     match s.flag, s.tag with
     | false, false -> ""
-    | true, false -> " \xe2\x9a\x91" (* ⚑ *)
-    | false, true -> " \xe2\x9a\x90" (* ⚐ *)
+    | true, false -> " \xe2\x9a\x91"
+    | false, true -> " \xe2\x9a\x90"
     | true, true -> " \xe2\x9a\x91\xe2\x9a\x90"
   in
-  let item_str node =
-    match node.item, pp_item with
-    | Some v, Some p -> Printf.sprintf " (%s)" (p v)
-    | Some _, None -> " <item>"
-    | None, _ -> ""
-  in
-  (* [prefix] is the accumulated left-margin for this line; [branch]
-     is the connector to draw right before this node ("├── ", "└── ",
-     or "" for the root). [edge] is the incoming edge (None for root)
-     so we can print its marks after the node line. *)
-  let rec walk prefix branch edge node =
+  let rec walk prefix is_last is_root edge node =
+    let branch =
+      if is_root
+      then ""
+      else if is_last
+      then "\xe2\x94\x94\xe2\x94\x80\xe2\x94\x80 " (* └── *)
+      else "\xe2\x94\x9c\xe2\x94\x80\xe2\x94\x80 " (* ├── *)
+    in
     let label =
-      if is_leaf node
-      then Printf.sprintf "L:%s%s" (key_str node.key) (item_str node)
-      else key_str node.key
+      if is_leaf node then Printf.sprintf "L:%s" (key_str node.key) else key_str node.key
     in
     let marks =
       match edge with
       | Some e -> edge_marks e
       | None -> ""
     in
-    fprintf fmt "%s%s[%s]%s@\n" prefix branch label marks;
+    Buffer.add_string buf prefix;
+    Buffer.add_string buf branch;
+    Buffer.add_char buf '[';
+    Buffer.add_string buf label;
+    Buffer.add_char buf ']';
+    Buffer.add_string buf marks;
+    Buffer.add_char buf '\n';
     if not (is_leaf node)
     then (
-      (* Snapshot children atomically-ish: we read each edge's value once.
-         They can change between these reads, but we commit to whatever
-         we saw for the rest of this subtree's rendering. *)
+      (* Sample both children's values together so this node's two
+         subtrees are drawn from a single read. *)
       let l = AFT.get_value node.left in
       let r = AFT.get_value node.right in
       let child_prefix =
-        prefix
-        ^
-        if branch = ""
+        if is_root
         then ""
-        else if String.length branch >= 4 && String.sub branch 0 3 = "\xe2\x94\x94"
-        then "    "
-        else "\xe2\x94\x82   "
+        else if is_last
+        then prefix ^ "    "
+        else prefix ^ "\xe2\x94\x82   " (* │    *)
       in
-      walk child_prefix "\xe2\x94\x9c\xe2\x94\x80\xe2\x94\x80 " (Some node.left) l;
-      walk child_prefix "\xe2\x94\x94\xe2\x94\x80\xe2\x94\x80 " (Some node.right) r)
+      walk child_prefix false false (Some node.left) l;
+      walk child_prefix true false (Some node.right) r)
   in
-  walk "" "" None tree;
-  pp_print_flush fmt ()
-;;
-
-(** [print ?pp_item tree] prints [tree] to stdout. Convenience wrapper
-    for the REPL and test failures. *)
-let print ?pp_item tree = pp ?pp_item Format.std_formatter tree
-
-(** [to_string ?pp_item tree] returns the pretty-printed tree as a
-    string. Useful for embedding tree dumps in test assertion messages. *)
-let to_string ?pp_item tree =
-  let buf = Buffer.create 256 in
-  let fmt = Format.formatter_of_buffer buf in
-  pp ?pp_item fmt tree;
+  walk "" false true None tree;
   Buffer.contents buf
 ;;
