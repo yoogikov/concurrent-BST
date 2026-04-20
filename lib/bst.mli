@@ -29,3 +29,5 @@ val delete : 'a t -> 'a -> bool
     insert/delete operations preserve the expected tree size. *)
 val size : 'a t -> int
 
+(** [to_string tree] returns a string which contains a pretty printed form of the tree *)
+val to_string : 'a t -> string
