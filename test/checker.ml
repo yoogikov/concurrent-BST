@@ -11,14 +11,14 @@ let process_file filename =
     try
       let line = input_line ic in
       read_lines (line :: acc)
-    with End_of_file ->
+    with
+    | End_of_file ->
       close_in ic;
       List.rev acc
   in
   let lines = read_lines [] in
   let lines = List.map String.trim lines in
   let lines = List.filter (fun s -> s <> "" && s <> "START" && s <> "END") lines in
-  
   let rec process_commands tree step = function
     | [] -> ()
     | line :: rest ->
