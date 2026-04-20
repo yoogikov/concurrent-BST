@@ -52,7 +52,7 @@ let process_file filename =
       
       Printf.printf "\nTree structure:\n";
       Printf.printf "%s\n" (to_string new_tree);
-      Printf.printf "Size: %d\n" (size new_tree);
+      (* Printf.printf "Size: %d\n" (size new_tree); *)
       process_commands new_tree (step + 1) rest
   in
   
