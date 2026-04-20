@@ -3,3 +3,13 @@
  (modules checker)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
+
+(executable
+ (name qcheck_lin_lockfree_bst)
+ (modules qcheck_lin_lockfree_bst)
+ (libraries bst qcheck-lin.domain))
+
+(executable
+ (name qcheck_stm_lockfree_bst)
+ (modules qcheck_stm_lockfree_bst)
+ (libraries bst qcheck-stm.sequential qcheck-stm.domain qcheck-multicoretests-util))

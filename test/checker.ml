@@ -1,74 +1,7 @@
 (* checker.ml *)
-(* A simple BST checker that reads test cases and pretty-prints the tree structure *)
+(* A simple BST checker that reads test cases and verifies operations *)
 
-type tree =
-  | Empty
-  | Node of { key: int; left: tree; right: tree }
-
-module BST = struct
-  let rec search tree key =
-    match tree with
-    | Empty -> false
-    | Node { key = k; left; right } ->
-      if key = k then true
-      else if key < k then search left key
-      else search right key
-
-  let rec insert tree key =
-    match tree with
-    | Empty -> Node { key; left = Empty; right = Empty }
-    | Node { key = k; left; right } ->
-      if key = k then Node { key = k; left; right }
-      else if key < k then
-        Node { key = k; left = insert left key; right }
-      else
-        Node { key = k; left; right = insert right key }
-
-  let rec delete tree key =
-    match tree with
-    | Empty -> Empty
-    | Node { key = k; left; right } ->
-      if key = k then
-        match left, right with
-        | Empty, Empty -> Empty
-        | Empty, _ -> right
-        | _, Empty -> left
-        | _, _ ->
-          (* Find min in right subtree *)
-          let rec find_min = function
-            | Empty -> failwith "should not happen"
-            | Node { key = mk; left = Empty; _ } -> mk
-            | Node { left; _ } -> find_min left
-          in
-          let min_key = find_min right in
-          Node { key = min_key; left; right = delete right min_key }
-      else if key < k then
-        Node { key = k; left = delete left key; right }
-      else
-        Node { key = k; left; right = delete right key }
-end
-
-(* Pretty printing the tree *)
-let rec tree_to_string ?(prefix = "") ?(is_tail = true) tree =
-  match tree with
-  | Empty -> ""
-  | Node { key; left; right } ->
-    let current = 
-      prefix ^ (if is_tail then "└── " else "├── ") ^ string_of_int key ^ "\n"
-    in
-    let prefix' = 
-      prefix ^ (if is_tail then "    " else "│   ")
-    in
-    let left_str = tree_to_string ~prefix:prefix' ~is_tail:false left in
-    let right_str = tree_to_string ~prefix:prefix' ~is_tail:true right in
-    current ^ left_str ^ right_str
-
-let print_tree tree =
-  match tree with
-  | Empty -> print_endline "Tree is empty"
-  | Node { key; _ } as t ->
-    Printf.printf "Root: %d\n" key;
-    print_endline (tree_to_string t)
+open Bst
 
 (* Parse and execute commands *)
 let process_file filename =
@@ -94,34 +27,36 @@ let process_file filename =
       let new_tree =
         if line = "CREATE" then begin
           Printf.printf "Creating new tree\n";
-          Empty
+          create ()
         end
         else if String.starts_with ~prefix:"INSERT " line then begin
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          Printf.printf "Inserting: %d\n" key;
-          BST.insert tree key
+          let changed = insert tree key in
+          Printf.printf "Inserting: %d (changed: %b)\n" key changed;
+          tree
         end
         else if String.starts_with ~prefix:"DELETE " line then begin
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          Printf.printf "Deleting: %d\n" key;
-          BST.delete tree key
+          let changed = delete tree key in
+          Printf.printf "Deleting: %d (changed: %b)\n" key changed;
+          tree
         end
         else if String.starts_with ~prefix:"SEARCH " line then begin
           let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          Printf.printf "Searching: %d\n" key;
-          let found = BST.search tree key in
-          Printf.printf "Result: %b\n" found;
+          let found = search tree key in
+          Printf.printf "Searching: %d (found: %b)\n" key found;
           tree
         end
         else tree
       in
       
       Printf.printf "\nTree structure:\n";
-      print_tree new_tree;
+      Printf.printf "%s\n" (to_string new_tree);
+      Printf.printf "Size: %d\n" (size new_tree);
       process_commands new_tree (step + 1) rest
   in
   
-  process_commands Empty 0 lines
+  process_commands (create ()) 0 lines
 
 let () =
   if Array.length Sys.argv < 2 then begin
