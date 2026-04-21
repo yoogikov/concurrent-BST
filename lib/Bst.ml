@@ -18,24 +18,24 @@ let inf2 = max_int
 
 module AFT = AtomicFlagTag
 
-type 'a node =
-  { item : 'a option
-  ; key : int
-  ; is_leaf : bool
-  ; left : 'a edge
-  ; right : 'a edge
-  }
+type 'a node = {
+  item : 'a option;
+  key : int;
+  is_leaf : bool;
+  left : 'a edge;
+  right : 'a edge;
+}
 
 and 'a edge = 'a node AFT.t
 
 type 'a t = 'a node
 
-type 'a seek_record =
-  { ancestor : 'a node (* last node before last untagged edge      *)
-  ; successor : 'a node (* child of ancestor on access path         *)
-  ; parent : 'a node (* second-to-last node on access path       *)
-  ; leaf : 'a node (* last node on access path (a leaf)        *)
-  }
+type 'a seek_record = {
+  ancestor : 'a node (* last node before last untagged edge      *);
+  successor : 'a node (* child of ancestor on access path         *);
+  parent : 'a node (* second-to-last node on access path       *);
+  leaf : 'a node (* last node on access path (a leaf)        *);
+}
 
 let is_leaf node = node.is_leaf
 
@@ -43,18 +43,23 @@ let is_leaf node = node.is_leaf
 let make_leaf key item =
   let dummy = AFT.make ~flag:false ~tag:false in
   (* leaf nodes — left/right are never followed *)
-  { item; key; is_leaf = true; left = dummy (Obj.magic ()); right = dummy (Obj.magic ()) }
-;;
+  {
+    item;
+    key;
+    is_leaf = true;
+    left = dummy (Obj.magic ());
+    right = dummy (Obj.magic ());
+  }
 
 (** Make an internal node with given children *)
 let make_internal key left right =
-  { item = None
-  ; key
-  ; is_leaf = false
-  ; left = AFT.make ~flag:false ~tag:false left
-  ; right = AFT.make ~flag:false ~tag:false right
+  {
+    item = None;
+    key;
+    is_leaf = false;
+    left = AFT.make ~flag:false ~tag:false left;
+    right = AFT.make ~flag:false ~tag:false right;
   }
-;;
 
 let child_edge node key = if key < node.key then node.left else node.right
 
@@ -65,8 +70,17 @@ let child_edge node key = if key < node.key then node.left else node.right
 (* leaf(inf0) leaf(inf1)                                               *)
 (* ------------------------------------------------------------------ *)
 
-(** [create ()] creates an empty lock-free BST with sentinel structure
-    already installed. *)
+let sentinel_name k =
+  if k = inf0 then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
+  else if k = inf1 then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
+  else if k = inf2 then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
+  else None
+
+let key_str k =
+  match sentinel_name k with Some s -> s | None -> string_of_int k
+
+(** [create ()] creates an empty lock-free BST with sentinel structure already
+    installed. *)
 let create () =
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
@@ -75,43 +89,46 @@ let create () =
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
   (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
-  (* let x = is_leaf leaf_inf0 in *)
-  (* Printf.printf "%b\n%!" x; *)
-  (* let x = is_leaf leaf_inf1 in *)
-  (* Printf.printf "%b\n%!" x; *)
-  (* let x = is_leaf leaf_inf2 in *)
-  (* Printf.printf "%b\n%!" x; *)
-  (* let x = is_leaf s in *)
-  (* Printf.printf "%b\n%!" x; *)
-  (* let x = is_leaf r in *)
-  (* Printf.printf "%b\n%!" x; *)
   r
-;;
 
-(** The seek phase return a [seek record], which consists of the addresses of four nodes:
+(** The seek phase return a [seek record], which consists of the addresses of
+    four nodes:
     - [leaf node]
     - [parent node]
-    - [successor node] : The head of the last untagged edge encountered on the access path before the parent node
-    - [ancestor node] : The tail of the last untagged edge encountered on the access path before the parent node
+    - [successor node] : The head of the last untagged edge encountered on the
+      access path before the parent node
+    - [ancestor node] : The tail of the last untagged edge encountered on the
+      access path before the parent node
 
-All the nodes on the access path from the successor to the parent node are in the process of being removed *)
+    All the nodes on the access path from the successor to the parent node are
+    in the process of being removed *)
 let seek root value =
-  if is_leaf (AFT.get_value root.left)
-  then Printf.printf "root is leaf\n%!"
-  else Printf.printf "root is not leaf\n%!";
+  (* if is_leaf (AFT.get_value root.left) *)
+  (* then Printf.printf "root is leaf\n%!" *)
+  (* else Printf.printf "root is not leaf\n%!"; *)
   (* failwith "Not implemented" *)
   let key = Hashtbl.hash value in
+  (* Printf.printf "key is %d\n%!" key; *)
   let s = AFT.get_value root.left in
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
-    if is_leaf leaf
-    then { ancestor; successor; parent; leaf }
-    else (
+    (* let colored_key k = *)
+    (*   if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k) *)
+    (*   else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k) *)
+    (*   else key_str k *)
+    (* in *)
+    (* Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!" *)
+    (*   (colored_key ancestor.key) *)
+    (*   (colored_key successor.key) *)
+    (*   (colored_key parent.key) (colored_key leaf.key); *)
+    if is_leaf leaf then { ancestor; successor; parent; leaf }
+    else
       let next_edge = child_edge leaf key in
-      if not (AFT.get_tag parent_leaf_edge)
-      then get_record parent leaf leaf (AFT.get_value next_edge) next_edge
-      else get_record ancestor successor leaf (AFT.get_value next_edge) next_edge)
+      if not (AFT.get_tag parent_leaf_edge) then
+        get_record parent leaf leaf (AFT.get_value next_edge) next_edge
+      else
+        get_record ancestor successor leaf (AFT.get_value next_edge) next_edge
   in
   (* let ancestor = ref root in *)
   (* let successor = ref s in *)
@@ -138,31 +155,27 @@ let seek root value =
   (* let init_current = AFT.get_value init_current_field in *)
   (* traverse s.left init_current_field init_current *)
   get_record root s s leaf_node s.left
-;;
 
-(** [search tree k] returns [true] if [k] is present in [tree],
-    and [false] otherwise. This is a lock-free search operation. 
-   Calls seek to get the seek record of the access path *)
+(** [search tree k] returns [true] if [k] is present in [tree], and [false]
+    otherwise. This is a lock-free search operation. Calls seek to get the seek
+    record of the access path *)
 let search root value =
   (* failwith "Not implemented" *)
   let sr = seek root value in
-  match sr.leaf.item with
-  | Some v -> value = v
-  | None -> false
-;;
+  match sr.leaf.item with Some v -> value = v | None -> false
 
-(** [inject record tree k] is the injection step of [delete].
-    It flags the incoming edge of [record.leaf] — the edge
-    [(record.parent, record.leaf)] — using an atomic CAS.
+(** [inject record tree k] is the injection step of [delete]. It flags the
+    incoming edge of [record.leaf] — the edge [(record.parent, record.leaf)] —
+    using an atomic CAS.
 
     Preconditions (from the seek phase, enforced by the caller):
-      - [record.leaf] is a leaf
-      - [record.leaf.key = k]
+    - [record.leaf] is a leaf
+    - [record.leaf.key = k]
 
-    Returns [true] if the CAS succeeds: this delete now "owns" the leaf
-    and is guaranteed to eventually complete via [cleanup].
-    Returns [false] otherwise, in which case the caller invokes [help]
-    and restarts the seek in [Inject] mode. *)
+    Returns [true] if the CAS succeeds: this delete now "owns" the leaf and is
+    guaranteed to eventually complete via [cleanup]. Returns [false] otherwise,
+    in which case the caller invokes [help] and restarts the seek in [Inject]
+    mode. *)
 let inject record _tree _k =
   (* Pick the edge of [parent] that points to [leaf].
      BST invariant: keys < parent.key sit on parent.left,
@@ -172,40 +185,32 @@ let inject record _tree _k =
      points to [leaf] and is currently unmarked. The value is preserved
      (still points to [leaf]) so that [cleanup] can find the leaf; only
      [cleanup]'s later CAS on [ancestor] actually unlinks it. *)
-  AFT.cas
-    edge
-    ~exp_val:record.leaf
-    ~exp_flag:false
-    ~exp_tag:false
-    ~new_val:record.leaf
-    ~new_flag:true
-    ~new_tag:false
-;;
+  AFT.cas edge ~exp_val:record.leaf ~exp_flag:false ~exp_tag:false
+    ~new_val:record.leaf ~new_flag:true ~new_tag:false
 
-(** [cleanup record tree k] is the cleanup step of [delete].
-    It completes a delete whose injection phase has already flagged the
-    [(parent, leaf)] edge.  Two atomic steps:
+(** [cleanup record tree k] is the cleanup step of [delete]. It completes a
+    delete whose injection phase has already flagged the [(parent, leaf)] edge.
+    Two atomic steps:
 
-    1. Tag the sibling edge of [leaf] at [parent] (guaranteed to succeed:
-       once the other child edge is flagged, the sibling can only have its
-       tag bit flipped, never its target).
-    2. CAS [ancestor]'s child field to bypass [parent], replacing the
-       edge [(ancestor, successor)] with an edge [(ancestor, sibling)]
-       that preserves the sibling edge's flag bit (so a concurrent delete
-       targeting the sibling does not lose its mark).
+    1. Tag the sibling edge of [leaf] at [parent] (guaranteed to succeed: once
+    the other child edge is flagged, the sibling can only have its tag bit
+    flipped, never its target). 2. CAS [ancestor]'s child field to bypass
+    [parent], replacing the edge [(ancestor, successor)] with an edge
+    [(ancestor, sibling)] that preserves the sibling edge's flag bit (so a
+    concurrent delete targeting the sibling does not lose its mark).
 
-    Returns [true] if the unlink CAS succeeds — the delete is done.
-    Returns [false] otherwise; the caller will re-seek and retry in
-    [Cleanup] mode. *)
+    Returns [true] if the unlink CAS succeeds — the delete is done. Returns
+    [false] otherwise; the caller will re-seek and retry in [Cleanup] mode. *)
 let cleanup record _tree =
   (* Step 0: figure out which side [leaf] is on at [parent], and
      which side [successor] is on at [ancestor]. Keys never change,
      so these comparisons are stable. *)
   let leaf_is_left = record.leaf.key < record.parent.key in
-  let sibling_edge = if leaf_is_left then record.parent.right else record.parent.left in
+  let sibling_edge =
+    if leaf_is_left then record.parent.right else record.parent.left
+  in
   let ancestor_child_edge =
-    if record.successor.key < record.ancestor.key
-    then record.ancestor.left
+    if record.successor.key < record.ancestor.key then record.ancestor.left
     else record.ancestor.right
   in
   (* Step 1: tag the sibling edge. Guaranteed to succeed per the paper:
@@ -228,36 +233,28 @@ let cleanup record _tree =
        doesn't lose its injection mark)
      - new_tag = false (this is a fresh edge whose tail [ancestor]
        is not being removed by *this* operation). *)
-  AFT.cas
-    ancestor_child_edge
-    ~exp_val:record.successor
-    ~exp_flag:false
-    ~exp_tag:false
-    ~new_val:sibling.value
-    ~new_flag:sibling.flag
-    ~new_tag:false
-;;
+  AFT.cas ancestor_child_edge ~exp_val:record.successor ~exp_flag:false
+    ~exp_tag:false ~new_val:sibling.value ~new_flag:sibling.flag ~new_tag:false
 
-(** [help record tree k] is called after a modify operation's CAS fails.
-    If a concurrent delete is mid-flight on the edge this op was trying
-    to use, we push that delete forward by running its [cleanup] before
-    we retry our own op.
+(** [help record tree k] is called after a modify operation's CAS fails. If a
+    concurrent delete is mid-flight on the edge this op was trying to use, we
+    push that delete forward by running its [cleanup] before we retry our own
+    op.
 
     Helping is needed precisely when the [(parent, leaf)] edge:
-      - still points to [record.leaf] (the delete hasn't moved on), AND
-      - has been marked (flag or tag bit set — a delete has injected).
+    - still points to [record.leaf] (the delete hasn't moved on), AND
+    - has been marked (flag or tag bit set — a delete has injected).
 
     If either condition fails, the situation has already resolved itself
-    (someone else finished the delete, or the edge was replaced by a
-    concurrent insert); we just return and let the caller re-seek. *)
+    (someone else finished the delete, or the edge was replaced by a concurrent
+    insert); we just return and let the caller re-seek. *)
 let help record tree =
   let edge = child_edge record.parent record.leaf.key in
   let snap = AFT.get edge in
   (* Atomic snapshot: value/flag/tag from one indivisible read. Using
      the snapshot (rather than three separate get_value/get_flag/get_tag
      calls) ensures we don't act on a torn view of the edge. *)
-  if snap.value == record.leaf && (snap.flag || snap.tag)
-  then
+  if snap.value == record.leaf && (snap.flag || snap.tag) then
     (* Some delete has injected on this edge. Drive it through its
        cleanup. Our own [record] is a valid cleanup input: seek
        recorded the last untagged edge on the access path down to
@@ -265,60 +262,51 @@ let help record tree =
        We return cleanup's return value — although it doesn't really matter, for analysis purposes *)
     cleanup record tree
   else false
-;;
 
-type mode =
-  | Inject
-  | Cleanup
-  | Helping
+type mode = Inject | Cleanup | Helping
 
-(** [delete tree k] removes [k] from [tree] if present.
-    Returns [true] if the tree changed, and [false] if [k] was not present. *)
+(** [delete tree k] removes [k] from [tree] if present. Returns [true] if the
+    tree changed, and [false] if [k] was not present. *)
 let delete tree value =
   let k = Hashtbl.hash value in
-  let record = seek tree k in
-  let rec delete_in_mode mode record =
-    match mode with
-    | Inject ->
-      if inject record tree k
-      then delete_in_mode Cleanup record
-      else delete_in_mode Helping record
-    | Cleanup ->
-      if cleanup record tree then true else delete_in_mode Cleanup (seek tree k)
-    | Helping ->
-      ignore (help record tree);
-      delete_in_mode Inject (seek tree k)
-  in
-  delete_in_mode Inject record
-;;
+  let record = seek tree value in
+  if record.leaf.key <> k then false
+  else
+    let rec delete_in_mode mode record =
+      match mode with
+      | Inject ->
+          if inject record tree k then delete_in_mode Cleanup record
+          else delete_in_mode Helping record
+      | Cleanup ->
+          if cleanup record tree then true
+          else delete_in_mode Cleanup (seek tree value)
+      | Helping ->
+          ignore (help record tree);
+          delete_in_mode Inject (seek tree value)
+    in
+    delete_in_mode Inject record
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
-    Returns [true] if the tree changed, and [false] if [k] was already
-    present.
+    Returns [true] if the tree changed, and [false] if [k] was already present.
 
-    Algorithm (Natarajan-Mittal §5.2):
-      1. Seek to the leaf where [k] would sit.
-      2. If that leaf already holds [k], the key is present — return false.
-      3. Otherwise build a fresh subtree of two nodes:
-           newInternal with key = max(k, leaf.key)
-           newLeaf     with key = k
-         Wired so the BST invariant is preserved at newInternal.
-      4. CAS the [(parent, leaf)] edge to point at newInternal.
-         On success we're done. On failure, help any concurrent delete
-         on the same edge, then retry from the top — the tree has
-         changed and our seek record is stale. *)
+    Algorithm (Natarajan-Mittal §5.2): 1. Seek to the leaf where [k] would sit.
+    2. If that leaf already holds [k], the key is present — return false. 3.
+    Otherwise build a fresh subtree of two nodes: newInternal with key = max(k,
+    leaf.key) newLeaf with key = k Wired so the BST invariant is preserved at
+    newInternal. 4. CAS the [(parent, leaf)] edge to point at newInternal. On
+    success we're done. On failure, help any concurrent delete on the same edge,
+    then retry from the top — the tree has changed and our seek record is stale.
+*)
 let rec insert tree value =
   let k = Hashtbl.hash value in
-  let record = seek tree k in
-  if record.leaf.key = k
-  then false
-  else (
+  let record = seek tree value in
+  if record.leaf.key = k then false
+  else
     (* Execution phase: build the replacement subtree. *)
     let k' = record.leaf.key in
     let new_leaf = make_leaf k None in
     let new_internal =
-      if k < k'
-      then make_internal k' new_leaf record.leaf
+      if k < k' then make_internal k' new_leaf record.leaf
       else make_internal k record.leaf new_leaf
     in
     (* Note on newInternal.key:
@@ -335,57 +323,33 @@ let rec insert tree value =
        injected on this edge — we must not trample it. A set tag means
        [parent] itself is being removed — same story. *)
     let success =
-      AFT.cas
-        edge
-        ~exp_val:record.leaf
-        ~exp_flag:false
-        ~exp_tag:false
-        ~new_val:new_internal
-        ~new_flag:false
-        ~new_tag:false
+      AFT.cas edge ~exp_val:record.leaf ~exp_flag:false ~exp_tag:false
+        ~new_val:new_internal ~new_flag:false ~new_tag:false
     in
-    if success
-    then true
+    if success then true
     else (
       (* Push any in-progress delete on this edge forward, then retry
          from a fresh seek. Our stale [record] is fine as input to help
          — it captured a valid access path when we traversed it. *)
       ignore (help record tree);
-      insert tree value))
-;;
+      insert tree value)
 
-(** [size tree] returns the current number of keys stored in [tree].
-    This helper is useful for manual and concurrent tests to verify that
-    insert/delete operations preserve the expected tree size. *)
+(** [size tree] returns the current number of keys stored in [tree]. This helper
+    is useful for manual and concurrent tests to verify that insert/delete
+    operations preserve the expected tree size. *)
 let size _ = failwith "Not implemented"
 
-(** Pretty-printing for debugging. Lock-free snapshot — the tree may
-    change during printing, so output reflects one recent state. *)
+(** Pretty-printing for debugging. Lock-free snapshot — the tree may change
+    during printing, so output reflects one recent state. *)
 
-let sentinel_name k =
-  if k = inf0
-  then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
-  else if k = inf1
-  then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
-  else if k = inf2
-  then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
-  else None
-;;
-
-let key_str k =
-  match sentinel_name k with
-  | Some s -> s
-  | None -> string_of_int k
-;;
-
-(** [to_string tree] returns a rotated-ASCII rendering of [tree].
-    Internal nodes appear as [key]; leaves as [L:key]. Edge marks
-    appear after the head node: [⚑] flagged, [⚐] tagged. *)
+(** [to_string tree] returns a rotated-ASCII rendering of [tree]. Internal nodes
+    appear as [key]; leaves as [L:key]. Edge marks appear after the head node:
+    [⚑] flagged, [⚐] tagged. *)
 let to_string tree =
   let buf = Buffer.create 256 in
   let edge_marks edge =
     let s = AFT.get edge in
-    match s.flag, s.tag with
+    match (s.flag, s.tag) with
     | false, false -> ""
     | true, false -> " \xe2\x9a\x91"
     | false, true -> " \xe2\x9a\x90"
@@ -393,20 +357,15 @@ let to_string tree =
   in
   let rec walk prefix is_last is_root edge node =
     let branch =
-      if is_root
-      then ""
-      else if is_last
-      then "\xe2\x94\x94\xe2\x94\x80\xe2\x94\x80 " (* └── *)
+      if is_root then ""
+      else if is_last then "\xe2\x94\x94\xe2\x94\x80\xe2\x94\x80 " (* └── *)
       else "\xe2\x94\x9c\xe2\x94\x80\xe2\x94\x80 " (* ├── *)
     in
     let label =
-      if is_leaf node then Printf.sprintf "L:%s" (key_str node.key) else key_str node.key
+      if is_leaf node then Printf.sprintf "L:%s" (key_str node.key)
+      else key_str node.key
     in
-    let marks =
-      match edge with
-      | Some e -> edge_marks e
-      | None -> ""
-    in
+    let marks = match edge with Some e -> edge_marks e | None -> "" in
     Buffer.add_string buf prefix;
     Buffer.add_string buf branch;
     Buffer.add_char buf '[';
@@ -414,17 +373,14 @@ let to_string tree =
     Buffer.add_char buf ']';
     Buffer.add_string buf marks;
     Buffer.add_char buf '\n';
-    if not (is_leaf node)
-    then (
+    if not (is_leaf node) then (
       (* Sample both children's values together so this node's two
          subtrees are drawn from a single read. *)
       let l = AFT.get_value node.left in
       let r = AFT.get_value node.right in
       let child_prefix =
-        if is_root
-        then ""
-        else if is_last
-        then prefix ^ "    "
+        if is_root then ""
+        else if is_last then prefix ^ "    "
         else prefix ^ "\xe2\x94\x82   " (* │    *)
       in
       walk child_prefix false false (Some node.left) l;
@@ -432,4 +388,3 @@ let to_string tree =
   in
   walk "" false true None tree;
   Buffer.contents buf
-;;
