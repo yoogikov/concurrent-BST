@@ -270,19 +270,21 @@ type mode = Inject | Cleanup | Helping
 let delete tree value =
   let k = Hashtbl.hash value in
   let record = seek tree value in
-  let rec delete_in_mode mode record =
-    match mode with
-    | Inject ->
-        if inject record tree k then delete_in_mode Cleanup record
-        else delete_in_mode Helping record
-    | Cleanup ->
-        if cleanup record tree then true
-        else delete_in_mode Cleanup (seek tree value)
-    | Helping ->
-        ignore (help record tree);
-        delete_in_mode Inject (seek tree value)
-  in
-  delete_in_mode Inject record
+  if record.leaf.key <> k then false
+  else
+    let rec delete_in_mode mode record =
+      match mode with
+      | Inject ->
+          if inject record tree k then delete_in_mode Cleanup record
+          else delete_in_mode Helping record
+      | Cleanup ->
+          if cleanup record tree then true
+          else delete_in_mode Cleanup (seek tree value)
+      | Helping ->
+          ignore (help record tree);
+          delete_in_mode Inject (seek tree value)
+    in
+    delete_in_mode Inject record
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present.
