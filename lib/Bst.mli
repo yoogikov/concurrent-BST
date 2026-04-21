@@ -8,9 +8,13 @@
 (** The type of a concurrent lock-free binary search tree. *)
 type 'a t
 
-(** [create ()] creates an empty lock-free BST with sentinel structure
-    already installed. *)
-val create : unit -> 'a t
+(** [create hash_fn] creates an empty lock-free BST with the provided hash function.
+    The hash function maps values to integer keys.
+    
+    For integers: use [fun x -> x]
+    For other types: use [Hashtbl.hash] or a custom function
+*)
+val create : ('a -> int) -> ('a -> string) -> 'a t
 
 (** [search tree k] returns [true] if [k] is present in [tree],
     and [false] otherwise. This is a lock-free search operation. *)

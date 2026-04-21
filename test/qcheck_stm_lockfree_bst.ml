@@ -68,7 +68,7 @@ module Spec = struct
       ])
 
   let init_state = (0, [])
-  let init_sut () = BST.create ()
+  let init_sut () = BST.create (fun x -> x) string_of_int
   let cleanup _ = ()
 
   (** Helper to insert into sorted list (no duplicates) *)
