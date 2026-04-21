@@ -29,11 +29,7 @@ type 'a node = {
 and 'a edge = 'a node AFT.t
 
 (* The tree stores both the root and the hash function *)
-type 'a t = {
-  hash : 'a -> int;
-  to_string : 'a -> string;
-  root : 'a node;
-} 
+type 'a t = { hash : 'a -> int; to_string : 'a -> string; root : 'a node }
 
 type 'a seek_record = {
   ancestor : 'a node (* last node before last untagged edge      *);
@@ -77,11 +73,11 @@ let child_edge node key = if key < node.key then node.left else node.right
 
 (** [create hash_fn] creates an empty lock-free BST with sentinel structure
     already installed and the provided hash function.
-    
-    Args: hash_fn - function to hash values to integer keys
-    Returns: an empty BST *)
-    
-    let sentinel_name k =
+
+    Args: hash_fn - function to hash values to integer keys Returns: an empty
+    BST *)
+
+let sentinel_name k =
   if k = inf0 then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
   else if k = inf1 then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
   else if k = inf2 then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
@@ -90,11 +86,9 @@ let child_edge node key = if key < node.key then node.left else node.right
 let key_str k =
   match sentinel_name k with Some s -> s | None -> string_of_int k
 
-
-
 (** [create ()] creates an empty lock-free BST with sentinel structure already
     installed. *)
-    let create hash_fn to_string_fn=
+let create hash_fn to_string_fn =
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
   let leaf_inf1 = make_leaf inf1 None in
@@ -112,8 +106,7 @@ let key_str k =
   (* Printf.printf "%b\n%!" x; *)
   (* let x = is_leaf r in *)
   (* Printf.printf "%b\n%!" x; *)
-  { hash = hash_fn;to_string = to_string_fn; root = r}
-;;
+  { hash = hash_fn; to_string = to_string_fn; root = r }
 
 (** The seek phase return a [seek record], which consists of the addresses of
     four nodes:
@@ -126,26 +119,27 @@ let key_str k =
 
     All the nodes on the access path from the successor to the parent node are
     in the process of being removed *)
-let seek root value =
+let seek tree value =
   (* if is_leaf (AFT.get_value root.left) *)
   (* then Printf.printf "root is leaf\n%!" *)
   (* else Printf.printf "root is not leaf\n%!"; *)
   (* failwith "Not implemented" *)
-  let key = Hashtbl.hash value in
+  let key = tree.hash value in
+  let root = tree.root in
   (* Printf.printf "key is %d\n%!" key; *)
   let s = AFT.get_value root.left in
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
-    (* let colored_key k = *)
-    (*   if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k) *)
-    (*   else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k) *)
-    (*   else key_str k *)
-    (* in *)
-    (* Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!" *)
-    (*   (colored_key ancestor.key) *)
-    (*   (colored_key successor.key) *)
-    (*   (colored_key parent.key) (colored_key leaf.key); *)
+    let colored_key k =
+      if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k)
+      else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k)
+      else key_str k
+    in
+    Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!"
+      (colored_key ancestor.key)
+      (colored_key successor.key)
+      (colored_key parent.key) (colored_key leaf.key);
     if is_leaf leaf then { ancestor; successor; parent; leaf }
     else
       let next_edge = child_edge leaf key in
@@ -386,16 +380,13 @@ let to_string tree =
       else "\xe2\x94\x9c\xe2\x94\x80\xe2\x94\x80 " (* ├── *)
     in
     let label =
-      if is_leaf node then 
+      if is_leaf node then
         match node.item with
         | Some v -> Printf.sprintf "L:%s" (tree.to_string v)
         | None -> Printf.sprintf "L:%s" (key_str node.key)
       else key_str node.key
     in
-    let marks =
-      match edge with
-      | Some e -> edge_marks e
-      | None -> ""
+    let marks = match edge with Some e -> edge_marks e | None -> "" in
     Buffer.add_string buf prefix;
     Buffer.add_string buf branch;
     Buffer.add_char buf '[';
@@ -413,8 +404,8 @@ let to_string tree =
         else if is_last then prefix ^ "    "
         else prefix ^ "\xe2\x94\x82   " (* │    *)
       in
-      walk child_prefix false false (Some node.left) l;
-      walk child_prefix true false (Some node.right) r)
+      walk child_prefix false false (Some node.right) r;
+      walk child_prefix true false (Some node.left) l)
   in
   walk "" false true None tree.root;
   Buffer.contents buf
