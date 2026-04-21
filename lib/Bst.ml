@@ -70,6 +70,15 @@ let child_edge node key = if key < node.key then node.left else node.right
 (* leaf(inf0) leaf(inf1)                                               *)
 (* ------------------------------------------------------------------ *)
 
+let sentinel_name k =
+  if k = inf0 then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
+  else if k = inf1 then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
+  else if k = inf2 then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
+  else None
+
+let key_str k =
+  match sentinel_name k with Some s -> s | None -> string_of_int k
+
 (** [create ()] creates an empty lock-free BST with sentinel structure already
     installed. *)
 let create () =
@@ -99,10 +108,20 @@ let seek root value =
   (* else Printf.printf "root is not leaf\n%!"; *)
   (* failwith "Not implemented" *)
   let key = Hashtbl.hash value in
+  (* Printf.printf "key is %d\n%!" key; *)
   let s = AFT.get_value root.left in
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
+    (* let colored_key k = *)
+    (*   if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k) *)
+    (*   else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k) *)
+    (*   else key_str k *)
+    (* in *)
+    (* Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!" *)
+    (*   (colored_key ancestor.key) *)
+    (*   (colored_key successor.key) *)
+    (*   (colored_key parent.key) (colored_key leaf.key); *)
     if is_leaf leaf then { ancestor; successor; parent; leaf }
     else
       let next_edge = child_edge leaf key in
@@ -250,7 +269,7 @@ type mode = Inject | Cleanup | Helping
     tree changed, and [false] if [k] was not present. *)
 let delete tree value =
   let k = Hashtbl.hash value in
-  let record = seek tree k in
+  let record = seek tree value in
   let rec delete_in_mode mode record =
     match mode with
     | Inject ->
@@ -258,10 +277,10 @@ let delete tree value =
         else delete_in_mode Helping record
     | Cleanup ->
         if cleanup record tree then true
-        else delete_in_mode Cleanup (seek tree k)
+        else delete_in_mode Cleanup (seek tree value)
     | Helping ->
         ignore (help record tree);
-        delete_in_mode Inject (seek tree k)
+        delete_in_mode Inject (seek tree value)
   in
   delete_in_mode Inject record
 
@@ -278,7 +297,7 @@ let delete tree value =
 *)
 let rec insert tree value =
   let k = Hashtbl.hash value in
-  let record = seek tree k in
+  let record = seek tree value in
   if record.leaf.key = k then false
   else
     (* Execution phase: build the replacement subtree. *)
@@ -320,15 +339,6 @@ let size _ = failwith "Not implemented"
 
 (** Pretty-printing for debugging. Lock-free snapshot — the tree may change
     during printing, so output reflects one recent state. *)
-
-let sentinel_name k =
-  if k = inf0 then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
-  else if k = inf1 then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
-  else if k = inf2 then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
-  else None
-
-let key_str k =
-  match sentinel_name k with Some s -> s | None -> string_of_int k
 
 (** [to_string tree] returns a rotated-ASCII rendering of [tree]. Internal nodes
     appear as [key]; leaves as [L:key]. Edge marks appear after the head node:
