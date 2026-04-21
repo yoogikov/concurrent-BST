@@ -16,11 +16,11 @@ val search : 'a t -> 'a -> bool
 (** [search tree k] returns [true] if [k] is present in [tree],
     and [false] otherwise. This is a lock-free search operation. *)
 
-val insert : 'a t -> 'a -> unit
+val insert : 'a t -> 'a -> bool
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present. *)
 
-val delete : 'a t -> 'a -> unit
+val delete : 'a t -> 'a -> bool
 (** [delete tree k] removes [k] from [tree] if present.
     Returns [true] if the tree changed, and [false] if [k] was not present. *)
 
@@ -28,3 +28,6 @@ val size : 'a t -> int
 (** [size tree] returns the current number of keys stored in [tree].
     This helper is useful for manual and concurrent tests to verify that
     insert/delete operations preserve the expected tree size. *)
+
+(** [to_string tree] returns a string which contains a pretty printed form of the tree *)
+val to_string : 'a t -> string
