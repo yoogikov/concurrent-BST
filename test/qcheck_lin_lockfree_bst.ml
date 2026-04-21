@@ -46,7 +46,7 @@ module BSTSig = struct
   type t = int BST.t
 
   (** Create a new BST for testing *)
-  let init () = BST.create ()
+  let init () = BST.create (fun x -> x) string_of_int
 
   (** No cleanup needed *)
   let cleanup _ = ()

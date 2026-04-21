@@ -28,7 +28,12 @@ type 'a node = {
 
 and 'a edge = 'a node AFT.t
 
-type 'a t = 'a node
+(* The tree stores both the root and the hash function *)
+type 'a t = {
+  hash : 'a -> int;
+  to_string : 'a -> string;
+  root : 'a node;
+} 
 
 type 'a seek_record = {
   ancestor : 'a node (* last node before last untagged edge      *);
@@ -70,7 +75,13 @@ let child_edge node key = if key < node.key then node.left else node.right
 (* leaf(inf0) leaf(inf1)                                               *)
 (* ------------------------------------------------------------------ *)
 
-let sentinel_name k =
+(** [create hash_fn] creates an empty lock-free BST with sentinel structure
+    already installed and the provided hash function.
+    
+    Args: hash_fn - function to hash values to integer keys
+    Returns: an empty BST *)
+    
+    let sentinel_name k =
   if k = inf0 then Some "\xe2\x88\x9e\xe2\x82\x80" (* ∞₀ *)
   else if k = inf1 then Some "\xe2\x88\x9e\xe2\x82\x81" (* ∞₁ *)
   else if k = inf2 then Some "\xe2\x88\x9e\xe2\x82\x82" (* ∞₂ *)
@@ -79,9 +90,11 @@ let sentinel_name k =
 let key_str k =
   match sentinel_name k with Some s -> s | None -> string_of_int k
 
+
+
 (** [create ()] creates an empty lock-free BST with sentinel structure already
     installed. *)
-let create () =
+    let create hash_fn to_string_fn=
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
   let leaf_inf1 = make_leaf inf1 None in
@@ -89,7 +102,18 @@ let create () =
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
   (* Root node*)
   let r = make_internal inf2 s leaf_inf2 in
-  r
+  (* let x = is_leaf leaf_inf0 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf leaf_inf1 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf leaf_inf2 in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf s in *)
+  (* Printf.printf "%b\n%!" x; *)
+  (* let x = is_leaf r in *)
+  (* Printf.printf "%b\n%!" x; *)
+  { hash = hash_fn;to_string = to_string_fn; root = r}
+;;
 
 (** The seek phase return a [seek record], which consists of the addresses of
     four nodes:
@@ -268,7 +292,7 @@ type mode = Inject | Cleanup | Helping
 (** [delete tree k] removes [k] from [tree] if present. Returns [true] if the
     tree changed, and [false] if [k] was not present. *)
 let delete tree value =
-  let k = Hashtbl.hash value in
+  let k = tree.hash value in
   let record = seek tree value in
   if record.leaf.key <> k then false
   else
@@ -298,7 +322,7 @@ let delete tree value =
     then retry from the top — the tree has changed and our seek record is stale.
 *)
 let rec insert tree value =
-  let k = Hashtbl.hash value in
+  let k = tree.hash value in
   let record = seek tree value in
   if record.leaf.key = k then false
   else
@@ -362,10 +386,16 @@ let to_string tree =
       else "\xe2\x94\x9c\xe2\x94\x80\xe2\x94\x80 " (* ├── *)
     in
     let label =
-      if is_leaf node then Printf.sprintf "L:%s" (key_str node.key)
+      if is_leaf node then 
+        match node.item with
+        | Some v -> Printf.sprintf "L:%s" (tree.to_string v)
+        | None -> Printf.sprintf "L:%s" (key_str node.key)
       else key_str node.key
     in
-    let marks = match edge with Some e -> edge_marks e | None -> "" in
+    let marks =
+      match edge with
+      | Some e -> edge_marks e
+      | None -> ""
     Buffer.add_string buf prefix;
     Buffer.add_string buf branch;
     Buffer.add_char buf '[';
@@ -386,5 +416,5 @@ let to_string tree =
       walk child_prefix false false (Some node.left) l;
       walk child_prefix true false (Some node.right) r)
   in
-  walk "" false true None tree;
+  walk "" false true None tree.root;
   Buffer.contents buf

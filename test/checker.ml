@@ -2,7 +2,6 @@
 (* A simple BST checker that reads test cases and verifies operations *)
 
 module BST = Bst
-(* module BST = CoarseGrainedBST *)
 
 (* Parse and execute commands *)
 let process_file filename =
@@ -28,24 +27,24 @@ let process_file filename =
       let new_tree =
         if line = "CREATE" then begin
           Printf.printf "Creating new tree\n%!";
-          BST.create ()
+          BST.create (fun x -> x) string_of_int
         end
         else if String.starts_with ~prefix:"INSERT " line then begin
-          let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          let changed = BST.insert tree key in
-          Printf.printf "Inserting: %d (changed: %b)\n%!" key changed;
+          let value = int_of_string (String.sub line 7 (String.length line - 7)) in
+          let changed = BST.insert tree value in
+          Printf.printf "Inserting: %d (changed: %b)\n%!" value changed;
           tree
         end
         else if String.starts_with ~prefix:"DELETE " line then begin
-          let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          let changed = BST.delete tree key in
-          Printf.printf "Deleting: %d (changed: %b)\n%!" key changed;
+          let value = int_of_string (String.sub line 7 (String.length line - 7)) in
+          let changed = BST.delete tree value in
+          Printf.printf "Deleting: %d (changed: %b)\n%!" value changed;
           tree
         end
         else if String.starts_with ~prefix:"SEARCH " line then begin
-          let key = int_of_string (String.sub line 7 (String.length line - 7)) in
-          let found = BST.search tree key in
-          Printf.printf "Searching: %d (found: %b)\n%!" key found;
+          let value = int_of_string (String.sub line 7 (String.length line - 7)) in
+          let found = BST.search tree value in
+          Printf.printf "Searching: %d (found: %b)\n%!" value found;
           tree
         end
         else tree
@@ -57,7 +56,7 @@ let process_file filename =
       process_commands new_tree (step + 1) rest
   in
   
-  process_commands (BST.create ()) 0 lines
+  process_commands (BST.create (fun x -> x) string_of_int) 0 lines
 
 let () =
   if Array.length Sys.argv < 2 then begin
