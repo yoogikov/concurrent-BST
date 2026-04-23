@@ -13,3 +13,10 @@
  (modules coarseGrainedBST)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
+
+(library
+ (name optimisticLazyList)
+ (wrapped false)
+ (modules optimisticLazyList)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))
