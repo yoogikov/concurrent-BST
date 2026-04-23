@@ -180,8 +180,6 @@ let seek tree value =
 let search root value =
   (* failwith "Not implemented" *)
   let sr = seek root value in
-  let key = root.hash value in 
-  
   match sr.leaf.item with Some v ->  value = v |  None -> false
 
 (** [inject record tree k] is the injection step of [delete]. It flags the
