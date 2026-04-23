@@ -180,7 +180,7 @@ let seek tree value =
 let search root value =
   (* failwith "Not implemented" *)
   let sr = seek root value in
-  match sr.leaf.item with Some v -> value = v | None -> false
+  match sr.leaf.item with Some v ->  value = v |  None -> false
 
 (** [inject record tree k] is the injection step of [delete]. It flags the
     incoming edge of [record.leaf] — the edge [(record.parent, record.leaf)] —
@@ -322,7 +322,7 @@ let rec insert tree value =
   else
     (* Execution phase: build the replacement subtree. *)
     let k' = record.leaf.key in
-    let new_leaf = make_leaf k None in
+    let new_leaf = make_leaf k (Some value) in
     let new_internal =
       if k < k' then make_internal k' new_leaf record.leaf
       else make_internal k record.leaf new_leaf
