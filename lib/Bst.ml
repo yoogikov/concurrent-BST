@@ -182,7 +182,7 @@ let search root value =
   let sr = seek root value in
   let key = root.hash value in 
   
-  match sr.leaf.item with Some v -> Printf.printf "Found %d\n%!" key; value = v |  None -> Printf.printf "Found None";false
+  match sr.leaf.item with Some v ->  value = v |  None -> false
 
 (** [inject record tree k] is the injection step of [delete]. It flags the
     incoming edge of [record.leaf] — the edge [(record.parent, record.leaf)] —
