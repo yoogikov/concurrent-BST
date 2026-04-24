@@ -2,9 +2,10 @@
 (library
  (name Bst)
  (wrapped false)
- (modules Bst AtomicFlagTag)
+ (modules Bst)
  (ocamlopt_flags (:standard -w -32))
- (ocamlc_flags (:standard -w -32)))
+ (ocamlc_flags (:standard -w -32))
+ (libraries AtomicFlagTag))
 
 
 (library
@@ -18,5 +19,12 @@
  (name optimisticLazyList)
  (wrapped false)
  (modules optimisticLazyList)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))
+
+(library
+ (name AtomicFlagTag)
+ (wrapped false)
+ (modules AtomicFlagTag)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
