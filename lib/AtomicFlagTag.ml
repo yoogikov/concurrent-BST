@@ -41,7 +41,7 @@ let cas
   let rec loop () =
     let current = Atomic.get snapshot in
     if current.flag <> exp_flag || current.tag <> exp_tag
-       || current.value <> exp_val
+       || current.value != exp_val
     then false
     else
       let new_snapshot = { flag = new_flag; tag = new_tag; value = new_val } in
@@ -75,7 +75,7 @@ let get_value r =
 let set_flag r flag =
   let rec loop () =
     let snapshot = Atomic.get r in
-    if snapshot.flag = flag then ()
+    if snapshot.flag == flag then ()
     else
       let new_snapshot = { snapshot with flag } in
       if Atomic.compare_and_set r snapshot new_snapshot then ()
@@ -87,7 +87,7 @@ let set_flag r flag =
 let set_tag r tag =
   let rec loop () =
     let snapshot = Atomic.get r in
-    if snapshot.tag = tag then ()
+    if snapshot.tag == tag then ()
     else
       let new_snapshot = { snapshot with tag } in
       if Atomic.compare_and_set r snapshot new_snapshot then ()
@@ -99,7 +99,7 @@ let set_tag r tag =
 let set_value r value =
   let rec loop () =
     let snapshot = Atomic.get r in
-    if snapshot.value = value then ()
+    if snapshot.value == value then ()
     else
       let new_snapshot = { snapshot with value } in
       if Atomic.compare_and_set r snapshot new_snapshot then ()

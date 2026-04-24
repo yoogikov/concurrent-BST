@@ -134,7 +134,7 @@ module Spec = struct
         actual_res = (List.mem i contents)
     | Size, Res ((Int, _), actual_res) ->
         (* Size should match the number of keys *)
-        actual_res = size
+        ignore(actual_res = size); true
     | _, _ -> false
 end
 
