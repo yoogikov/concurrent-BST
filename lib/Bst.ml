@@ -29,7 +29,7 @@ type 'a node = {
 and 'a edge = 'a node AFT.t
 
 (* The tree stores both the root and the hash function *)
-type 'a t = { hash : 'a -> int; to_string : 'a -> string; root : 'a node }
+type 'a t = { hash : 'a -> int; to_string : 'a -> string; root : 'a node; dummy : 'a edge }
 
 type 'a seek_record = {
   ancestor : 'a node (* last node before last untagged edge      *);
@@ -41,16 +41,13 @@ type 'a seek_record = {
 let is_leaf node = node.is_leaf
 
 (** Make a leaf node *)
-let make_leaf key item =
-  let dummy = AFT.make ~flag:false ~tag:false in
-  (* leaf nodes — left/right are never followed *)
-  {
-    item;
-    key;
-    is_leaf = true;
-    left = dummy (Obj.magic ());
-    right = dummy (Obj.magic ());
-  }
+let make_leaf dummy key item = {
+  item;
+  key;
+  is_leaf = true;
+  left = dummy;
+  right = dummy;
+}
 
 (** Make an internal node with given children *)
 let make_internal key left right =
@@ -89,6 +86,10 @@ let key_str k =
 (** [create ()] creates an empty lock-free BST with sentinel structure already
     installed. *)
 let create hash_fn to_string_fn =
+  let dummy_aft = AFT.make ~flag:false ~tag:false (Obj.magic ())  in
+  let dummy_node = { item = None; key = 0; is_leaf = true; left = dummy_aft; right = dummy_aft } in
+  AFT.set dummy_aft ~flag:false ~tag:false dummy_node ;
+  let make_leaf = make_leaf dummy_aft in
   (* failwith "Not implemented" *)
   let leaf_inf0 = make_leaf inf0 None in
   let leaf_inf1 = make_leaf inf1 None in
@@ -106,7 +107,7 @@ let create hash_fn to_string_fn =
   (* Printf.printf "%b\n%!" x; *)
   (* let x = is_leaf r in *)
   (* Printf.printf "%b\n%!" x; *)
-  { hash = hash_fn; to_string = to_string_fn; root = r }
+  { hash = hash_fn; to_string = to_string_fn; root = r; dummy = dummy_aft }
 
 (** The seek phase return a [seek record], which consists of the addresses of
     four nodes:
@@ -278,7 +279,7 @@ let help record tree =
     cleanup record tree
   else false
 
-type mode = Inject | Cleanup | Helping
+type mode = Inject | Cleanup of bool | Helping
 
 (** [delete tree k] removes [k] from [tree] if present. Returns [true] if the
     tree changed, and [false] if [k] was not present. *)
@@ -290,11 +291,11 @@ let delete tree value =
     let rec delete_in_mode mode record =
       match mode with
       | Inject ->
-          if inject record tree k then delete_in_mode Cleanup record
+          if inject record tree k then delete_in_mode (Cleanup true) record
           else delete_in_mode Helping record
-      | Cleanup ->
-          if cleanup record tree then true
-          else delete_in_mode Cleanup (seek tree value)
+      | Cleanup owned ->
+          if cleanup record tree then owned
+          else delete_in_mode (Cleanup owned) (seek tree value)
       | Helping ->
           ignore (help record tree);
           delete_in_mode Inject (seek tree value)
@@ -319,7 +320,7 @@ let rec insert tree value =
   else
     (* Execution phase: build the replacement subtree. *)
     let k' = record.leaf.key in
-    let new_leaf = make_leaf k (Some value) in
+    let new_leaf = make_leaf tree.dummy k (Some value) in
     let new_internal =
       if k < k' then make_internal k' new_leaf record.leaf
       else make_internal k record.leaf new_leaf

@@ -75,5 +75,5 @@ module BST_domain = Lin_domain.Make(BSTSig)
 (** Run 1000 test iterations, each with random command sequences *)
 let () =
   QCheck_base_runner.run_tests_main [
-    BST_domain.lin_test ~count:5 ~name:"Lock-free BST linearizability test";
+    BST_domain.lin_test ~count:100 ~name:"Lock-free BST linearizability test";
   ]
