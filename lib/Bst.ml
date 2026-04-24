@@ -131,15 +131,12 @@ let seek tree value =
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
-    let colored_key k =
+    let _colored_key k =
       if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k)
       else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k)
       else key_str k
     in
-    Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!"
-      (colored_key ancestor.key)
-      (colored_key successor.key)
-      (colored_key parent.key) (colored_key leaf.key);
+    (* Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!" (_colored_key ancestor.key) (_colored_key successor.key) (_colored_key parent.key) (_colored_key leaf.key); *)
     if is_leaf leaf then { ancestor; successor; parent; leaf }
     else
       let next_edge = child_edge leaf key in
