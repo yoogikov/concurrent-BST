@@ -131,15 +131,12 @@ let seek tree value =
   let leaf_node = AFT.get_value s.left in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
-    let colored_key k =
+    let _colored_key k =
       if k > key then Printf.sprintf "\027[31m%s\027[0m" (key_str k)
       else if k < key then Printf.sprintf "\027[32m%s\027[0m" (key_str k)
       else key_str k
     in
-    Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!"
-      (colored_key ancestor.key)
-      (colored_key successor.key)
-      (colored_key parent.key) (colored_key leaf.key);
+    (* Printf.printf "ancestor=%s successor=%s parent=%s leaf=%s\n%!" (_colored_key ancestor.key) (_colored_key successor.key) (_colored_key parent.key) (_colored_key leaf.key); *)
     if is_leaf leaf then { ancestor; successor; parent; leaf }
     else
       let next_edge = child_edge leaf key in
@@ -180,7 +177,7 @@ let seek tree value =
 let search root value =
   (* failwith "Not implemented" *)
   let sr = seek root value in
-  match sr.leaf.item with Some v -> value = v | None -> false
+  match sr.leaf.item with Some v ->  value = v |  None -> false
 
 (** [inject record tree k] is the injection step of [delete]. It flags the
     incoming edge of [record.leaf] — the edge [(record.parent, record.leaf)] —
@@ -322,7 +319,7 @@ let rec insert tree value =
   else
     (* Execution phase: build the replacement subtree. *)
     let k' = record.leaf.key in
-    let new_leaf = make_leaf k None in
+    let new_leaf = make_leaf k (Some value) in
     let new_internal =
       if k < k' then make_internal k' new_leaf record.leaf
       else make_internal k record.leaf new_leaf

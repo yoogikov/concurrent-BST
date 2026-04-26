@@ -38,12 +38,17 @@ let cas
       ~new_tag
       ~(new_val : 'a)
   =
-  let current = Atomic.get snapshot in
-  if current.flag = exp_flag && current.tag = exp_tag && current.value == exp_val
-  then (
-    let new_snapshot = { flag = new_flag; tag = new_tag; value = new_val } in
-    Atomic.compare_and_set snapshot current new_snapshot)
-  else false
+  let rec loop () =
+    let current = Atomic.get snapshot in
+    if current.flag <> exp_flag || current.tag <> exp_tag
+       || current.value <> exp_val
+    then false
+    else
+      let new_snapshot = { flag = new_flag; tag = new_tag; value = new_val } in
+      if Atomic.compare_and_set snapshot current new_snapshot then true
+      else loop ()
+  in
+  loop ()
 ;;
 
 (* Field-level accessors *)
@@ -67,33 +72,38 @@ let get_value r =
 ;;
 
 (* Field-level mutators *)
-
 let set_flag r flag =
-  (* not_implemented "set_flag" *)
   let rec loop () =
     let snapshot = Atomic.get r in
-    let new_snapshot = { snapshot with flag } in
-    if Atomic.compare_and_set r snapshot new_snapshot then () else loop ()
+    if snapshot.flag = flag then ()
+    else
+      let new_snapshot = { snapshot with flag } in
+      if Atomic.compare_and_set r snapshot new_snapshot then ()
+      else loop ()
   in
   loop ()
 ;;
 
 let set_tag r tag =
-  (* not_implemented "set_tag" *)
   let rec loop () =
     let snapshot = Atomic.get r in
-    let new_snapshot = { snapshot with tag } in
-    if Atomic.compare_and_set r snapshot new_snapshot then () else loop ()
+    if snapshot.tag = tag then ()
+    else
+      let new_snapshot = { snapshot with tag } in
+      if Atomic.compare_and_set r snapshot new_snapshot then ()
+      else loop ()
   in
   loop ()
 ;;
 
 let set_value r value =
-  (* not_implemented "set_value" *)
   let rec loop () =
     let snapshot = Atomic.get r in
-    let new_snapshot = { snapshot with value } in
-    if Atomic.compare_and_set r snapshot new_snapshot then () else loop ()
+    if snapshot.value = value then ()
+    else
+      let new_snapshot = { snapshot with value } in
+      if Atomic.compare_and_set r snapshot new_snapshot then ()
+      else loop ()
   in
   loop ()
 ;;

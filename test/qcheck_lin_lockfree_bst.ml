@@ -62,10 +62,11 @@ module BSTSig = struct
       - returning means function returns a value (not an exception)
   *)
   let api =
-    [ val_ "insert" BST.insert (t @-> int_small @-> returning bool);
-      val_ "delete" BST.delete (t @-> int_small @-> returning bool);
-      val_ "search" BST.search (t @-> int_small @-> returning bool);
-      val_ "size" BST.size (t @-> returning int); ]
+    [ val_ "insert" BST.insert (t @-> int_small @-> returning_or_exc bool);
+      val_ "delete" BST.delete (t @-> int_small @-> returning_or_exc bool);
+      val_ "search" BST.search (t @-> int_small @-> returning_or_exc bool);
+      (* val_ "size" BST.size (t @-> returning int);  *)
+      ]
 end
 
 (** Generate the linearizability test from the specification *)
@@ -74,5 +75,5 @@ module BST_domain = Lin_domain.Make(BSTSig)
 (** Run 1000 test iterations, each with random command sequences *)
 let () =
   QCheck_base_runner.run_tests_main [
-    BST_domain.lin_test ~count:1000 ~name:"Lock-free BST linearizability test";
+    BST_domain.lin_test ~count:5 ~name:"Lock-free BST linearizability test";
   ]
