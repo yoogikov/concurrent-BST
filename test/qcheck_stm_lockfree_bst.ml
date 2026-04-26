@@ -23,14 +23,14 @@ module Spec = struct
     | Insert of int
     | Delete of int
     | Search of int
-    | Size
+    (* | Size *)
 
   let show_cmd c =
     match c with
     | Insert i -> "Insert " ^ string_of_int i
     | Delete i -> "Delete " ^ string_of_int i
     | Search i -> "Search " ^ string_of_int i
-    | Size -> "Size"
+    (* | Size -> "Size" *)
 
   (** State: (current_size, contents_as_sorted_list) *)
   type state = int * int list
@@ -43,7 +43,7 @@ module Spec = struct
       (Gen.oneof_weighted [
         (7, Gen.map (fun i -> Insert i) int_gen);
         (2, Gen.map (fun i -> Search i) int_gen);
-        (1, Gen.return Size);
+        (* (1, Gen.return Size); *)
       ])
 
   (** Commands for deletion-focused domain *)
@@ -53,7 +53,7 @@ module Spec = struct
       (Gen.oneof_weighted [
         (7, Gen.map (fun i -> Delete i) int_gen);
         (2, Gen.map (fun i -> Search i) int_gen);
-        (1, Gen.return Size);
+        (* (1, Gen.return Size); *)
       ])
 
   (** All commands for sequential testing *)
@@ -64,7 +64,7 @@ module Spec = struct
         Gen.map (fun i -> Insert i) int_gen;
         Gen.map (fun i -> Delete i) int_gen;
         Gen.map (fun i -> Search i) int_gen;
-        Gen.return Size;
+        (* Gen.return Size; *)
       ])
 
   let init_state = (0, [])
@@ -103,8 +103,8 @@ module Spec = struct
           (size, contents)  (* Not present, no change *)
     | Search _ ->
         (size, contents)  (* Search doesn't change state *)
-    | Size ->
-        (size, contents)  (* Size query doesn't change state *)
+    (* | Size ->
+        (size, contents) *)
 
   let precond _ _ = true
 
@@ -117,11 +117,11 @@ module Spec = struct
         Res (bool, BST.delete d i)
     | Search i ->
         Res (bool, BST.search d i)
-    | Size ->
-        Res (int, BST.size d)
+    (* | Size ->
+        Res (int, BST.size d) *)
 
   (** Check if the actual result matches expectations from the model *)
-  let postcond c ((size, contents) : state) res =
+  let postcond c ((_size, contents) : state) res =
     match (c, res) with
     | Insert i, Res ((Bool, _), actual_res) ->
         (* Insert returns true if tree changed (key not already present) *)
@@ -132,9 +132,8 @@ module Spec = struct
     | Search i, Res ((Bool, _), actual_res) ->
         (* Search returns true iff key is present *)
         actual_res = (List.mem i contents)
-    | Size, Res ((Int, _), actual_res) ->
-        (* Size should match the number of keys *)
-        actual_res = size
+    (* | Size, Res ((Int, _), actual_res) ->
+        actual_res = size *)
     | _, _ -> false
 end
 

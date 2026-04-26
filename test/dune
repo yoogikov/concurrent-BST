@@ -17,6 +17,13 @@
 
 
 (executable
+ (name test_bst_concurrent)
+ (modules test_bst_concurrent)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32))
+ (libraries Bst))
+
+(executable
  (name qcheck_lin_AF)
  (modules qcheck_lin_AF)
  (libraries AtomicFlagTag qcheck-lin.domain))

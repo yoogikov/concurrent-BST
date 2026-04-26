@@ -13,20 +13,24 @@ type 'a node = {
 }
 
 type 'a t = {
+  hash : 'a -> int;
+  to_string : 'a -> string;
   mutex : Mutex.t;
   mutable root : 'a node option;
   mutable size : int;
 }
 
-let create () =
+let create hash_fn to_string_fn =
   {
+    hash = hash_fn;
+    to_string = to_string_fn;
     mutex = Mutex.create ();
     root = None;
     size = 0;
   }
 
 let search bst item =
-  let key = Hashtbl.hash item in
+  let key = bst.hash item in
   Mutex.lock bst.mutex;
   Fun.protect
     ~finally:(fun () -> Mutex.unlock bst.mutex)
@@ -42,7 +46,7 @@ let search bst item =
       loop bst.root)
 
 let insert bst item =
-  let key = Hashtbl.hash item in
+  let key = bst.hash item in
   Mutex.lock bst.mutex;
   Fun.protect
     ~finally:(fun () -> Mutex.unlock bst.mutex)
@@ -81,7 +85,7 @@ let insert bst item =
       loop bst.root)
 
 let delete bst item =
-  let key = Hashtbl.hash item in
+  let key = bst.hash item in
   Mutex.lock bst.mutex;
   Fun.protect
     ~finally:(fun () -> Mutex.unlock bst.mutex)
@@ -169,9 +173,9 @@ let to_string bst =
               else prefix ^ "│   "
             in
             
-            (* Traverse left then right *)
-            walk child_prefix false false n.left;
-            walk child_prefix true false n.right
+            (* Traverse right then left *)
+            walk child_prefix false false n.right;
+            walk child_prefix true false n.left
       in
       walk "" false true bst.root;
       Buffer.contents buf)

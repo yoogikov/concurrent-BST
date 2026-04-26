@@ -22,8 +22,8 @@ type 'a node = {
   item : 'a option;
   key : int;
   is_leaf : bool;
-  left : 'a edge;
-  right : 'a edge;
+  left : 'a edge option;
+  right : 'a edge option;
 }
 
 and 'a edge = 'a node AFT.t
@@ -42,15 +42,8 @@ let is_leaf node = node.is_leaf
 
 (** Make a leaf node *)
 let make_leaf key item =
-  let dummy = AFT.make ~flag:false ~tag:false in
-  (* leaf nodes — left/right are never followed *)
-  {
-    item;
-    key;
-    is_leaf = true;
-    left = dummy (Obj.magic ());
-    right = dummy (Obj.magic ());
-  }
+  (* leaf nodes — left/right are never followed, so we use None *)
+  { item; key; is_leaf = true; left = None; right = None }
 
 (** Make an internal node with given children *)
 let make_internal key left right =
@@ -58,11 +51,13 @@ let make_internal key left right =
     item = None;
     key;
     is_leaf = false;
-    left = AFT.make ~flag:false ~tag:false left;
-    right = AFT.make ~flag:false ~tag:false right;
+    left = Some (AFT.make ~flag:false ~tag:false left);
+    right = Some (AFT.make ~flag:false ~tag:false right);
   }
 
-let child_edge node key = if key < node.key then node.left else node.right
+let child_edge node key =
+  assert (not node.is_leaf);
+  if key < node.key then Option.get node.left else Option.get node.right
 
 (*        R (inf2)                                                      *)
 (*       /        \                                                     *)
@@ -127,8 +122,10 @@ let seek tree value =
   let key = tree.hash value in
   let root = tree.root in
   (* Printf.printf "key is %d\n%!" key; *)
-  let s = AFT.get_value root.left in
-  let leaf_node = AFT.get_value s.left in
+  if is_leaf (AFT.get_value (Option.get root.left)) then
+    Printf.printf "ohnoohhhhh\n%!";
+  let s = AFT.get_value (Option.get root.left) in
+  let leaf_node = AFT.get_value (Option.get s.left) in
   (* Initialize seek record*)
   let rec get_record ancestor successor parent leaf parent_leaf_edge =
     let _colored_key k =
@@ -169,7 +166,7 @@ let seek tree value =
   (* let init_current_field = leaf_node.left in *)
   (* let init_current = AFT.get_value init_current_field in *)
   (* traverse s.left init_current_field init_current *)
-  get_record root s s leaf_node s.left
+  get_record root s s leaf_node (Option.get s.left)
 
 (** [search tree k] returns [true] if [k] is present in [tree], and [false]
     otherwise. This is a lock-free search operation. Calls seek to get the seek
@@ -177,7 +174,7 @@ let seek tree value =
 let search root value =
   (* failwith "Not implemented" *)
   let sr = seek root value in
-  match sr.leaf.item with Some v ->  value = v |  None -> false
+  match sr.leaf.item with Some v -> value = v | None -> false
 
 (** [inject record tree k] is the injection step of [delete]. It flags the
     incoming edge of [record.leaf] — the edge [(record.parent, record.leaf)] —
@@ -217,37 +214,45 @@ let inject record _tree _k =
     Returns [true] if the unlink CAS succeeds — the delete is done. Returns
     [false] otherwise; the caller will re-seek and retry in [Cleanup] mode. *)
 let cleanup record _tree =
-  (* Step 0: figure out which side [leaf] is on at [parent], and
-     which side [successor] is on at [ancestor]. Keys never change,
-     so these comparisons are stable. *)
+  (* Compute both child-side edges of [parent] up front. The paper
+     names them childAddr (the edge to record.leaf) and siblingAddr
+     (the edge to its sibling). *)
   let leaf_is_left = record.leaf.key < record.parent.key in
+  let child_addr =
+    if leaf_is_left then Option.get record.parent.left
+    else Option.get record.parent.right
+  in
+  let sibling_addr_initial =
+    if leaf_is_left then Option.get record.parent.right
+    else Option.get record.parent.left
+  in
+  (* Paper Algorithm 4, lines 103-105: read the flag on the edge to
+     record.leaf. If that edge is *not* flagged, then this cleanup is
+     being driven by a helper whose seek record names the survivor,
+     not the victim — i.e. it is actually the sibling edge that has
+     been flagged. In that case, swap roles: treat childAddr as the
+     sibling. After this swap, [sibling_edge] correctly names the
+     edge that should be tagged in step 1, even when the role of
+     [record.leaf] in the original delete was as the survivor. *)
+  let leaf_edge_flag = AFT.get_flag child_addr in
   let sibling_edge =
-    if leaf_is_left then record.parent.right else record.parent.left
+    if not leaf_edge_flag then child_addr else sibling_addr_initial
   in
   let ancestor_child_edge =
-    if record.successor.key < record.ancestor.key then record.ancestor.left
-    else record.ancestor.right
+    assert (not record.ancestor.is_leaf);
+    if record.successor.key < record.ancestor.key then
+      Option.get record.ancestor.left
+    else Option.get record.ancestor.right
   in
-  (* Step 1: tag the sibling edge. Guaranteed to succeed per the paper:
-     no other op can replace this edge's target because the other child
-     edge (leaf's edge) is already flagged, making [parent] ineligible
-     as an injection point. set_tag leaves flag and value intact. *)
+  (* Step 1: tag the sibling edge. Guaranteed to succeed: once one of
+     the two child edges of [parent] is flagged, the other can only
+     have its tag bit flipped, never its target replaced. *)
   AFT.set_tag sibling_edge true;
-  (* Snapshot the sibling edge *after* tagging to read the node [S] and
-     the flag bit we need to carry over. By this point the value and
-     flag are frozen (no op can change them), so the snapshot is stable. *)
+  (* Snapshot after tagging — value and flag are now frozen. *)
   let sibling = AFT.get sibling_edge in
-  (* Step 2: swing [ancestor]'s child pointer past [parent] to [S].
-     - exp_val = successor (what seek observed; if it changed, some
-       other op raced ahead and our CAS correctly fails)
-     - exp_flag = false, exp_tag = false: seek guarantees this edge was
-       untagged, and if it has since been flagged or tagged, we lose
-       the race and retry
-     - new_val = sibling.value (the node [S])
-     - new_flag = sibling.flag (carry over so a concurrent delete of S
-       doesn't lose its injection mark)
-     - new_tag = false (this is a fresh edge whose tail [ancestor]
-       is not being removed by *this* operation). *)
+  (* Step 2: swing ancestor's child pointer past parent to sibling.
+     Carry over sibling's flag bit so a concurrent delete on the
+     sibling leaf doesn't lose its injection mark. *)
   AFT.cas ancestor_child_edge ~exp_val:record.successor ~exp_flag:false
     ~exp_tag:false ~new_val:sibling.value ~new_flag:sibling.flag ~new_tag:false
 
@@ -266,40 +271,51 @@ let cleanup record _tree =
 let help record tree =
   let edge = child_edge record.parent record.leaf.key in
   let snap = AFT.get edge in
-  (* Atomic snapshot: value/flag/tag from one indivisible read. Using
-     the snapshot (rather than three separate get_value/get_flag/get_tag
-     calls) ensures we don't act on a torn view of the edge. *)
+  (* Match the paper (Algorithm 2 line 56, Algorithm 3 line 80): help
+     when the edge still points to record.leaf and is marked either
+     way. cleanup itself disambiguates which side is the victim. *)
   if snap.value == record.leaf && (snap.flag || snap.tag) then
-    (* Some delete has injected on this edge. Drive it through its
-       cleanup. Our own [record] is a valid cleanup input: seek
-       recorded the last untagged edge on the access path down to
-       [parent]/[leaf], which is exactly what cleanup needs.
-       We return cleanup's return value — although it doesn't really matter, for analysis purposes *)
     cleanup record tree
   else false
-
-type mode = Inject | Cleanup | Helping
 
 (** [delete tree k] removes [k] from [tree] if present. Returns [true] if the
     tree changed, and [false] if [k] was not present. *)
 let delete tree value =
   let k = tree.hash value in
-  let record = seek tree value in
-  if record.leaf.key <> k then false
-  else
-    let rec delete_in_mode mode record =
-      match mode with
-      | Inject ->
-          if inject record tree k then delete_in_mode Cleanup record
-          else delete_in_mode Helping record
-      | Cleanup ->
-          if cleanup record tree then true
-          else delete_in_mode Cleanup (seek tree value)
-      | Helping ->
-          ignore (help record tree);
-          delete_in_mode Inject (seek tree value)
-    in
-    delete_in_mode Inject record
+  let rec inject_loop record =
+    (* Paper Algorithm 3, lines 69-81. We're in INJECTION mode here. *)
+    if record.leaf.key <> k then
+      (* Key not present in the tree (paper line 71-72). *)
+      false
+    else if inject record tree k then
+      (* CAS succeeded — we own the deletion. The original leaf, our
+         linearization-point witness, is record.leaf. Pass it through
+         to cleanup_loop so we can check identity, not just key. *)
+      cleanup_loop record record.leaf
+    else (
+      (* CAS failed (paper line 78-81). Help any conflicting delete on
+         this edge, then restart the seek and retry injection. *)
+      ignore (help record tree);
+      inject_loop (seek tree value))
+  and cleanup_loop record original_leaf =
+    (* Paper Algorithm 3, lines 82-87. We're in CLEANUP mode. The
+       original_leaf is the leaf we successfully flagged; its identity
+       (not its key) is what determines whether our delete is done. *)
+    if cleanup record tree then true
+    else
+      let new_record = seek tree value in
+      (* Paper line 83: if seek's leaf ≠ originally-flagged leaf, then
+         someone (a helper) finished our cleanup and removed the leaf.
+         We're done — return true. Compare node identity, *not* key,
+         because a concurrent insert could have added a fresh leaf with
+         the same key at a different position. *)
+      if new_record.leaf != original_leaf then true
+      else
+        (* The original leaf is still in the tree; retry cleanup with
+           a fresh seek record that may have a closer ancestor. *)
+        cleanup_loop new_record original_leaf
+  in
+  inject_loop (seek tree value)
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present.
@@ -394,15 +410,15 @@ let to_string tree =
     if not (is_leaf node) then (
       (* Sample both children's values together so this node's two
          subtrees are drawn from a single read. *)
-      let l = AFT.get_value node.left in
-      let r = AFT.get_value node.right in
+      let l = AFT.get_value (Option.get node.left) in
+      let r = AFT.get_value (Option.get node.right) in
       let child_prefix =
         if is_root then ""
         else if is_last then prefix ^ "    "
         else prefix ^ "\xe2\x94\x82   " (* │    *)
       in
-      walk child_prefix false false (Some node.right) r;
-      walk child_prefix true false (Some node.left) l)
+      walk child_prefix false false (Some (Option.get node.right)) r;
+      walk child_prefix true false (Some (Option.get node.left)) l)
   in
   walk "" false true None tree.root;
   Buffer.contents buf
