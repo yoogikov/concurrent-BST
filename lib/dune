@@ -15,9 +15,9 @@
  (ocamlc_flags (:standard -w -32)))
 
 (library
- (name optimisticLazyList)
+ (name optimisticLazyBST)
  (wrapped false)
- (modules optimisticLazyList)
+ (modules optimisticLazyBST)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
 

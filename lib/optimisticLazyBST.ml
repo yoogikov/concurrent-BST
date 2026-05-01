@@ -1,4 +1,4 @@
-(* optimisticLazyList.ml
+(* optimisticLazyBST.ml
  *
  * Optimistic lazy BST implementation.
  *

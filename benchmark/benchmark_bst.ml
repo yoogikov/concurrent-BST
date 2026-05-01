@@ -135,7 +135,7 @@ let run_benchmark impl_name num_threads search_pct insert_pct duration initial_s
   let module_of_name = function
     | "coarse"   -> (module CoarseGrainedBST : BST)
     | "lockfree" -> (module Bst : BST)
-    | "lazy"     -> (module OptimisticLazyList : BST)
+    | "lazy"     -> (module OptimisticLazyBST : BST)
     | "skiplist" -> (module SkiplistBST : BST)
     | _ -> failwith "Unknown implementation"
   in
@@ -270,7 +270,7 @@ let run_benchmark_latency impl_name num_threads search_pct insert_pct duration i
   let module_of_name = function
     | "coarse"   -> (module CoarseGrainedBST : BST)
     | "lockfree" -> (module Bst : BST)
-    | "lazy"     -> (module OptimisticLazyList : BST)
+    | "lazy"     -> (module OptimisticLazyBST : BST)
     | "skiplist" -> (module SkiplistBST : BST)
     | _          -> failwith "Unknown implementation"
   in
@@ -461,7 +461,7 @@ let run_benchmark_seqstats impl_name num_threads search_pct insert_pct duration 
   let module_of_name = function
     | "coarse"   -> (module CoarseGrainedBST   : BST_WITH_STATS)
     | "lockfree" -> (module Bst                : BST_WITH_STATS)
-    | "lazy"     -> (module OptimisticLazyList : BST_WITH_STATS)
+    | "lazy"     -> (module OptimisticLazyBST : BST_WITH_STATS)
     | _          -> failwith "Unknown implementation"
   in
   let impl_module = module_of_name impl_name in
