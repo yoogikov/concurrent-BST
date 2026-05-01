@@ -2,6 +2,10 @@
 
 A concurrent lock-free BST implementation in OCaml, based on the algorithm by Natarajan and Mittal (PPoPP 2014).
 
+## Video Submission Link
+
+https://drive.google.com/drive/folders/1u7lm32U_ibzI56fWDup667QOX58De_Dc
+
 ## Goal
 
 The main goal of this project is to implement a lock-free binary search tree that allows multiple threads to safely perform search, insert, and delete operations concurrently without using traditional locks. Instead, we use compare-and-swap (CAS) operations to ensure thread safety.
