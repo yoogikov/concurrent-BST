@@ -29,6 +29,12 @@ val size : 'a t -> int
     is useful for manual and concurrent tests to verify that insert/delete
     operations preserve the expected tree size. *)
 
+val sequential_stats : 'a t -> int * int * float
+(** [sequential_stats tree] must be called with no concurrent operations
+    running. Returns [(n, height, ratio)] where [n] is the number of nodes,
+    [height] is the height of the tree (number of levels), and [ratio] is
+    [height /. log2(n+1)]. *)
+
 val to_string : 'a t -> string
 (** [to_string tree] returns a string which contains a pretty printed form of
     the tree *)

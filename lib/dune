@@ -7,7 +7,6 @@
  (ocamlc_flags (:standard -w -32))
  (libraries AtomicFlagTag))
 
-
 (library
  (name coarseGrainedBST)
  (wrapped false)
@@ -28,3 +27,19 @@
  (modules AtomicFlagTag)
  (ocamlopt_flags (:standard -w -32))
  (ocamlc_flags (:standard -w -32)))
+
+(library
+ (name atomic_markable_ref)
+ (wrapped false)
+ (modules atomic_markable_ref)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32)))
+
+(library
+ (name lockfree_skiplist)
+ (wrapped false)
+ (modules lockfree_skiplist)
+ (ocamlopt_flags (:standard -w -32))
+ (ocamlc_flags (:standard -w -32))
+ (libraries atomic_markable_ref))
+

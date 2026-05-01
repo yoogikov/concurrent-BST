@@ -34,3 +34,14 @@ setup.log
 
 # Local OPAM switch
 _opam/
+report
+results
+benchmark/RUN_FROM_CSV.md
+benchmark/configs_ratios.csv
+benchmark/experiments_log.md
+benchmark/experiments2_log.md
+benchmark/experiments2.csv
+benchmark/experiments.csv
+benchmark/full_sweep.csv
+benchmark/run_from_csv.py
+benchmark/sample_configs.csv

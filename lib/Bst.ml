@@ -18,6 +18,11 @@ let inf2 = max_int
 
 module AFT = AtomicFlagTag
 
+(* Per-operation seek counters — incremented atomically by every thread.
+   Reset between benchmark runs via reset_iter_counts. *)
+let insert_seek_count = Atomic.make 0
+let delete_seek_count = Atomic.make 0
+
 type 'a node = {
   item : 'a option;
   key : int;
@@ -282,6 +287,10 @@ let help record tree =
     tree changed, and [false] if [k] was not present. *)
 let delete tree value =
   let k = tree.hash value in
+  let seek_and_count () =
+    Atomic.fetch_and_add delete_seek_count 1 |> ignore;
+    seek tree value
+  in
   let rec inject_loop record =
     (* Paper Algorithm 3, lines 69-81. We're in INJECTION mode here. *)
     if record.leaf.key <> k then
@@ -296,14 +305,14 @@ let delete tree value =
       (* CAS failed (paper line 78-81). Help any conflicting delete on
          this edge, then restart the seek and retry injection. *)
       ignore (help record tree);
-      inject_loop (seek tree value))
+      inject_loop (seek_and_count ()))
   and cleanup_loop record original_leaf =
     (* Paper Algorithm 3, lines 82-87. We're in CLEANUP mode. The
        original_leaf is the leaf we successfully flagged; its identity
        (not its key) is what determines whether our delete is done. *)
     if cleanup record tree then true
     else
-      let new_record = seek tree value in
+      let new_record = seek_and_count () in
       (* Paper line 83: if seek's leaf ≠ originally-flagged leaf, then
          someone (a helper) finished our cleanup and removed the leaf.
          We're done — return true. Compare node identity, *not* key,
@@ -315,7 +324,7 @@ let delete tree value =
            a fresh seek record that may have a closer ancestor. *)
         cleanup_loop new_record original_leaf
   in
-  inject_loop (seek tree value)
+  inject_loop (seek_and_count ())
 
 (** [insert tree k] inserts [k] into [tree] if it is not already present.
     Returns [true] if the tree changed, and [false] if [k] was already present.
@@ -331,6 +340,7 @@ let delete tree value =
 let rec insert tree value =
   let k = tree.hash value in
   let record = seek tree value in
+  Atomic.fetch_and_add insert_seek_count 1 |> ignore;
   if record.leaf.key = k then false
   else
     (* Execution phase: build the replacement subtree. *)
@@ -369,6 +379,32 @@ let rec insert tree value =
     is useful for manual and concurrent tests to verify that insert/delete
     operations preserve the expected tree size. *)
 let size _ = failwith "Not implemented"
+
+let sequential_stats tree =
+  let is_sentinel k = k = inf0 || k = inf1 || k = inf2 in
+  let rec walk node depth =
+    if node.is_leaf then
+      ((if is_sentinel node.key then 0 else 1), depth)
+    else
+      let l = AFT.get_value (Option.get node.left) in
+      let r = AFT.get_value (Option.get node.right) in
+      let (lc, lh) = walk l (depth + 1) in
+      let (rc, rh) = walk r (depth + 1) in
+      (lc + rc, max lh rh)
+  in
+  let (n, h) = walk tree.root 0 in
+  let ratio =
+    if n = 0 then 0.0
+    else float_of_int h /. (log (float_of_int (n + 1)) /. log 2.0)
+  in
+  (n, h, ratio)
+
+let reset_iter_counts () =
+  Atomic.set insert_seek_count 0;
+  Atomic.set delete_seek_count 0
+
+let get_insert_iters () = Atomic.get insert_seek_count
+let get_delete_iters () = Atomic.get delete_seek_count
 
 (** Pretty-printing for debugging. Lock-free snapshot — the tree may change
     during printing, so output reflects one recent state. *)
