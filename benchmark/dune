@@ -1,5 +1,5 @@
 (executable
  (name benchmark_bst)
  (modules benchmark_bst)
- (libraries Bst coarseGrainedBST optimisticLazyList unix)
+ (libraries Bst coarseGrainedBST optimisticLazyList lockfree_skiplist unix)
  (ocamlopt_flags (:standard -O3 -inline 100)))

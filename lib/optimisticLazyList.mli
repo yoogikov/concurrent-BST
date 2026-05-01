@@ -35,5 +35,11 @@ val delete : 'a t -> 'a -> bool
     insert/delete operations preserve the expected size. *)
 val size : 'a t -> int
 
+val sequential_stats : 'a t -> int * int * float
+(** [sequential_stats tree] must be called with no concurrent operations
+    running. Returns [(n, height, ratio)] where [n] is the number of data
+    nodes (excluding sentinel leaves), [height] is the depth of the deepest
+    data leaf from the root, and [ratio] is [height /. log2(n+1)]. *)
+
 (** [to_string tree] returns a pretty-printed form of the tree. *)
 val to_string : 'a t -> string

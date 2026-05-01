@@ -135,6 +135,22 @@ let delete bst item =
       if deleted then (bst.size <- bst.size - 1;true)
       else false)
 
+let sequential_stats bst =
+  let rec walk node =
+    match node with
+    | None -> (0, 0)
+    | Some n ->
+        let (lc, lh) = walk n.left in
+        let (rc, rh) = walk n.right in
+        (1 + lc + rc, 1 + max lh rh)
+  in
+  let (n, h) = walk bst.root in
+  let ratio =
+    if n = 0 then 0.0
+    else float_of_int h /. (log (float_of_int (n + 1)) /. log 2.0)
+  in
+  (n, h, ratio)
+
 let size bst =
   Mutex.lock bst.mutex;
   Fun.protect

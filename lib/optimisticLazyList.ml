@@ -32,8 +32,6 @@ type 'a t = {
   hash : 'a -> int;
   to_string : 'a -> string;
   root : 'a node;
-  size_lock : Mutex.t;
-  mutable size_value : int;
 }
 
 type 'a seek_record = {
@@ -107,9 +105,6 @@ let with_three_locks a b c f =
           Mutex.lock c;
           Fun.protect ~finally:(fun () -> Mutex.unlock c) f))
 
-let change_size tree delta =
-  with_mutex tree.size_lock (fun () -> tree.size_value <- tree.size_value + delta)
-
 let sentinel_name k =
   if k = inf0 then Some "INF0"
   else if k = inf1 then Some "INF1"
@@ -124,13 +119,7 @@ let create hash_fn to_string_fn =
   let leaf_inf2 = make_leaf inf2 None in
   let s = make_internal inf1 leaf_inf0 leaf_inf1 in
   let r = make_internal inf2 s leaf_inf2 in
-  {
-    hash = hash_fn;
-    to_string = to_string_fn;
-    root = r;
-    size_lock = Mutex.create ();
-    size_value = 0;
-  }
+  { hash = hash_fn; to_string = to_string_fn; root = r }
 
 let seek tree value =
   let key = tree.hash value in
@@ -175,25 +164,20 @@ let insert tree value =
   let rec attempt () =
     let record = seek tree value in
     let result =
-    with_mutex tree.size_lock (fun () ->
       with_mutex record.parent.lock (fun () ->
-          with_mutex record.leaf.lock (fun () ->
-              if not (validate_insert record) then `Retry
-              else if record.leaf.key = key then
-                match record.leaf.item with
-                | Some existing when existing = value -> `Present
-                | _ -> `Present
+        with_mutex record.leaf.lock (fun () ->
+          if not (validate_insert record) then `Retry
+          else if record.leaf.key = key then `Present
+          else
+            let new_leaf = make_leaf key (Some value) in
+            let new_internal =
+              if key < record.leaf.key then
+                make_internal record.leaf.key new_leaf record.leaf
               else
-                let new_leaf = make_leaf key (Some value) in
-                let new_internal =
-                  if key < record.leaf.key then
-                    make_internal record.leaf.key new_leaf record.leaf
-                  else
-                    make_internal key record.leaf new_leaf
-                in
-                set_child record.parent record.leaf.key new_internal;
-                change_size tree 1;
-                `Inserted)))
+                make_internal key record.leaf new_leaf
+            in
+            set_child record.parent record.leaf.key new_internal;
+            `Inserted))
     in
     match result with
     | `Retry -> attempt ()
@@ -218,7 +202,6 @@ let delete tree value =
                 record.parent.marked <- true;
                 let sibling_node = sibling record.parent record.leaf in
                 set_child record.grandparent record.parent.key sibling_node;
-                tree.size_value <- tree.size_value - 1;
                 `Deleted
             | _ -> `Missing)
     in
@@ -229,7 +212,26 @@ let delete tree value =
   in
   attempt ()
 
-let size tree = with_mutex tree.size_lock (fun () -> tree.size_value)
+let size _ = failwith "Not implemented"
+
+let sequential_stats tree =
+  let is_sentinel k = k = inf0 || k = inf1 || k = inf2 in
+  let rec walk node depth =
+    if node.is_leaf then
+      ((if is_sentinel node.key then 0 else 1), depth)
+    else
+      let l = Option.get node.left in
+      let r = Option.get node.right in
+      let (lc, lh) = walk l (depth + 1) in
+      let (rc, rh) = walk r (depth + 1) in
+      (lc + rc, max lh rh)
+  in
+  let (n, h) = walk tree.root 0 in
+  let ratio =
+    if n = 0 then 0.0
+    else float_of_int h /. (log (float_of_int (n + 1)) /. log 2.0)
+  in
+  (n, h, ratio)
 
 let to_string tree =
   let buf = Buffer.create 256 in
