@@ -103,3 +103,4 @@ For comparison, the project also includes:
 
 - Natarajan, A., & Mittal, N. (2014). Fast Concurrent Lock-Free Binary Search Trees. PPoPP 2014.
 - CS6868_s26 — https://github.com/fplaunchpad/cs6868_s26
+- Lock-free skip list implementation — https://github.com/agentcreatormax/Concurrent_SkipLists
