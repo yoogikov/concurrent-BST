@@ -2,7 +2,7 @@
     Based on an external (leaf-oriented) BST with optimistic traversal,
     per-node locking, and lazy deletion via marking.
 
-    The filename/module name is kept as [optimisticLazyList] to match the
+    The filename/module name is kept as [optimisticLazyBST] to match the
     existing project layout, but the data structure implemented here is a BST. *)
 
 (** The type of a concurrent optimistic lazy BST. *)
